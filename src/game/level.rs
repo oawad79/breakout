@@ -25,22 +25,28 @@ impl Tile {
     pub fn breakable(&self) -> bool {
         !matches!(*self, Self::Air | Self::Metal | Self::Gold)
     }
-    pub fn hit(&mut self) {
+    // Returns whether it dropped a powerup
+    pub fn hit(&mut self) -> bool {
         if !self.breakable() {
-            return;
+            return false;
         }
+
+        let spawn_powerup = gen_range(0, 15) == 0 && !matches!(*self, Tile::Stone | Tile::StoneCracked);
+
         *self = match *self {
             Self::Stone => Self::StoneCracked,
             _ => Self::Air,
-        }
+        };
+
+        spawn_powerup
     }
 }
 
-pub const LEVEL_WIDTH: usize = 100;
-pub const LEVEL_HEIGHT: usize = 70;
+pub const LEVEL_WIDTH: usize = 16;
+pub const LEVEL_HEIGHT: usize = 24;
 
 pub const LEVEL_HEIGHT_PADDING_TOP: usize = 2;
-pub const LEVEL_HEIGHT_PADDING_BOTTOM: usize = 6;
+pub const LEVEL_HEIGHT_PADDING_BOTTOM: usize = 7;
 
 pub const TILE_WIDTH: f32 = 11.0;
 pub const TILE_HEIGHT: f32 = 6.0;
@@ -48,59 +54,70 @@ pub const TILE_GAP: f32 = 1.0;
 
 pub const NAME_LEN: usize = 20;
 
+#[derive(Clone)]
 pub struct Level {
     tiles: [Tile; LEVEL_WIDTH*LEVEL_HEIGHT],
+    powerup_buffer: Vec<usize>,
     name: String,
 }
 
 impl Level {
     pub fn new() -> Self {
-
         let mut tiles = [Tile::Air; LEVEL_WIDTH*LEVEL_HEIGHT];
 
         for (i, t) in &mut tiles.iter_mut().rev().enumerate() {
-            // if i / LEVEL_WIDTH <= 3 {
-            //     continue;
-            // }
-            *t = match gen_range(0, 13) {
-                1  => Tile::Red,
-                2  => Tile::Orange,
-                3  => Tile::Yellow,
-                4  => Tile::Green,
-                5  => Tile::Cyan,
-                6  => Tile::Blue,
-                7  => Tile::Pink,
-                8  => Tile::Stone,
-                9  => Tile::StoneCracked,
-                10 => Tile::Metal,
-                11 => Tile::Gold,
-                _  => Tile::Air,
-            };
-            
-            // if (i % LEVEL_WIDTH) == 0 || (i % LEVEL_WIDTH) == LEVEL_WIDTH - 1 {
-            //     continue;
-            // } 
-            // *t = match i / LEVEL_WIDTH {
-            //     16 => Tile::Stone,
-            //     17 => Tile::Red,
-            //     18 => Tile::Orange,
-            //     19 => Tile::Yellow,
-            //     20 => Tile::Green,
-            //     21 => Tile::Cyan,
-            //     22 => Tile::Blue,
-            //     23 => Tile::Pink,
+            // *t = match gen_range(0, 13) {
+            //     1  => Tile::Red,
+            //     2  => Tile::Orange,
+            //     3  => Tile::Yellow,
+            //     4  => Tile::Green,
+            //     5  => Tile::Cyan,
+            //     6  => Tile::Blue,
+            //     7  => Tile::Pink,
+            //     8  => Tile::Stone,
+            //     9  => Tile::StoneCracked,
+            //     10 => Tile::Metal,
+            //     11 => Tile::Gold,
             //     _  => Tile::Air,
             // };
+            if (i % LEVEL_WIDTH) == 0 || (i % LEVEL_WIDTH) == LEVEL_WIDTH - 1 {
+                continue;
+            } 
+            *t = match (i / LEVEL_WIDTH) - 5 {
+                0       => Tile::Stone,
+                1 ..=2  => Tile::Red,
+                3 ..=4  => Tile::Orange,
+                5 ..=6  => Tile::Yellow,
+                7 ..=8  => Tile::Green,
+                9 ..=10 => Tile::Cyan,
+                11..=12 => Tile::Blue,
+                13..=14 => Tile::Pink,
+                _  => Tile::Air,
+            };
         }
 
         Self {
             tiles,
+            powerup_buffer: Vec::with_capacity(10),
             name: String::from("NEW LEVEL"),
         }
     }
 
     pub fn tiles_mut(&mut self) -> &mut [Tile] {
         &mut self.tiles
+    }
+    pub fn name(&self) -> &String {
+        &self.name
+    }
+
+    pub fn break_tile(&mut self, index: usize) {
+        self.tiles.get_mut(index).map(|t| if t.hit() {
+            self.powerup_buffer.push(index)
+        });
+    }
+    
+    pub fn powerup_buffer_next(&mut self) -> Option<usize> {
+        self.powerup_buffer.pop()
     }
 
     pub fn tile_pos(index: usize) -> Vec2 {

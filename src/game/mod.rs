@@ -1,48 +1,52 @@
-use std::f32::consts::PI;
-
-use ball::{Ball, BallHitState};
+use ball::{Ball, BallHitState, BALL_SIZE};
+use bullet::Bullet;
 use level::Level;
-use macroquad::{color::{BLACK, RED, WHITE}, math::vec2, rand::gen_range, shapes::draw_rectangle_lines, texture::Texture2D, window::clear_background};
+use macroquad::{color::{BLACK, WHITE}, math::{vec2, Rect}, texture::{draw_texture_ex, DrawTextureParams, Texture2D}, window::clear_background};
 use paddle::Paddle;
+use powerup::{Powerup, PowerupHitState, PowerupKind};
 
-use crate::Scene;
+use crate::text_renderer::{render_text, TextAlign};
 
 pub mod paddle;
 pub mod ball;
 pub mod powerup;
+pub mod bullet;
 pub mod level;
 
 pub struct Game {
-    paddle: Paddle,
-    balls: Vec<Ball>,
     level: Level,
+    paddle: Paddle,
+    balls:    Vec<Ball>,
+    powerups: Vec<Powerup>,
+    bullets:  Vec<Bullet>,
 }
 
-impl Scene for Game {
-    fn new() -> Self {
-        let balls = (0..10).map(|_| Ball::new(vec2(gen_range(0.0, 10.0), gen_range(0.0, 10.0)), vec2(1.0, 1.0))).collect();
+impl Game {
+    pub fn new(level: Level, paddle_pos: Option<f32>, lives: Option<usize>) -> Self {
         Self {
-            paddle: Paddle::new(),
-            balls,
-            level: Level::new(),
+            level,
+            paddle: Paddle::new(paddle_pos, lives),
+            balls:    Vec::with_capacity(100),
+            powerups: Vec::with_capacity(20),
+            bullets:  Vec::with_capacity(20),
         }
     }
-    fn update(&mut self) {
+    pub fn update(&mut self) {
         let delta = macroquad::time::get_frame_time();
 
-        let carried = self.paddle.update(delta);
+        // Balls
+        let carried = self.paddle.update(delta, &mut self.bullets);
         if let Some(carried) = carried {
             self.balls.push(carried);
         }
 
         let mut new_carry = None;
-        let mut floor_balls = Vec::new();
-
+        let mut remove_balls = Vec::new();
         for (i, ball) in self.balls.iter_mut().enumerate() {
-            let hit_state = ball.update(delta, &self.paddle, &mut self.level);
+            let hit_state = ball.update(delta, &self.paddle, &mut self.level, self.paddle.balls_safe());
 
             if hit_state == BallHitState::Floor {
-                floor_balls.push(i);
+                remove_balls.push(i);
             }
             if hit_state == BallHitState::Paddle && new_carry.is_none() {
                 new_carry = Some(i);
@@ -54,18 +58,92 @@ impl Scene for Game {
                 self.paddle.carry(self.balls.remove(new_carry));
             }
         }
-        for i in floor_balls.iter().rev() {
+
+        // Powerups
+        while let Some(p) = self.level.powerup_buffer_next() {
+            self.powerups.push(Powerup::new(p));
+        }
+
+        let mut remove_powerups = Vec::new();
+        for (i, powerup) in self.powerups.iter_mut().enumerate() {
+            let hit_state = powerup.update(delta, &self.paddle);
+
+            if hit_state == PowerupHitState::Paddle {
+                match powerup.kind() {
+                    PowerupKind::PaddleCarry => self.paddle.powerup_carry(),
+                    PowerupKind::PaddleGrow  => self.paddle.powerup_grow(),
+                    PowerupKind::PaddleGun   => self.paddle.powerup_gun(),
+                    PowerupKind::BallsSafe   => self.paddle.powerup_balls_safe(),
+                    PowerupKind::Zap => println!("zap!"), // TODO: ZAP!
+                    _ => {}
+                };
+            }
+
+            if hit_state != PowerupHitState::None {
+                remove_powerups.push(i);
+            }
+        }
+
+        // Bullets
+        let mut remove_bullets = Vec::new();
+        for (i, b) in self.bullets.iter_mut().enumerate() {
+            if b.update(delta, &mut self.level) {
+                remove_bullets.push(i);
+            }
+        }
+
+        for i in remove_balls.iter().rev() {
             self.balls.remove(*i);
+        }
+        for i in remove_powerups.iter().rev() {
+            self.powerups.remove(*i);
+        }
+        for i in remove_bullets.iter().rev() {
+            self.bullets.remove(*i);
         }
     }
 
-    fn draw(&self, texture: &Texture2D) {
-        clear_background(BLACK);
+    pub fn draw(&self, texture: &Texture2D) {
+        // clear_background(BLACK);
 
+        // Actual stuff
+        for p in &self.powerups {
+            p.draw(texture);
+        }
         self.level.draw(texture);
-        self.paddle.draw(texture);
         for b in &self.balls {
             b.draw(texture);
         }
+        for b in &self.bullets {
+            b.draw(texture);
+        }
+        self.paddle.draw(texture);
+
+        // HUD
+        let mut x = 1.0;
+        for _ in 0..self.paddle.lives() {
+            draw_texture_ex(texture, x, Level::view_size().y - BALL_SIZE - 1.0, WHITE, DrawTextureParams {
+                source: Some(Rect::new(1.0, 8.0, 4.0, 4.0)),
+                ..Default::default()
+            });
+            x += BALL_SIZE + 1.0;
+        }
+        for _ in 0..self.paddle.carries() {
+            draw_texture_ex(texture, x, Level::view_size().y - BALL_SIZE - 1.0, WHITE, DrawTextureParams {
+                source: Some(Rect::new(1.0, 13.0, 4.0, 4.0)),
+                ..Default::default()
+            });
+            x += BALL_SIZE + 1.0;
+        }
+
+        // Text
+        render_text(&String::from("SCORE: 123457"), vec2(0.0, 0.0), WHITE, TextAlign::Left, &texture);
+        render_text(self.level.name(), vec2(Level::view_size().x, 0.0), WHITE, TextAlign::Right, &texture);
+
+        render_text(&format!("JUMBLEDFOX :3").to_uppercase(), vec2(0.0, 50.0), WHITE, TextAlign::Left, &texture);
+
+        // "Testing" lol
+        // render_text(&format!("O:3").to_uppercase(), vec2(100.0, 200.0), WHITE, TextAlign::Left, &texture);
+        // println!("{:?}", self.paddle.center_dist(100.0));
     }
 }

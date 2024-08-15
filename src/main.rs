@@ -4,7 +4,7 @@ use macroquad::prelude::*;
 
 pub mod game;
 pub mod editor;
-
+pub mod text_renderer;
 
 pub trait Scene {
     fn new() -> Self;
@@ -17,8 +17,8 @@ fn window_conf()-> Conf {
     let window_size = Level::view_size();
     Conf { 
         window_title: String::from("Breakout"),
-        window_width: window_size.x as i32 * 2,
-        window_height: window_size.y as i32 * 2,
+        window_width: window_size.x as i32 * 6,
+        window_height: window_size.y as i32 * 6,
         high_dpi: true,
         ..Default::default()
     }
@@ -26,8 +26,9 @@ fn window_conf()-> Conf {
 
 #[macroquad::main(window_conf())]
 async fn main() {
-    // let mut editor = Editor::new();
-    let mut game = Game::new();
+    let _editor = Editor::new();
+
+    let mut game = Game::new(Level::new(), None, None);
 
     let view_size = Level::view_size();
     let camera = Camera2D::from_display_rect(Rect::new(0.0, view_size.y, view_size.x, -view_size.y));

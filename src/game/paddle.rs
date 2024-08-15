@@ -1,36 +1,111 @@
-use macroquad::{color::WHITE, input::{is_key_down, is_key_pressed, is_key_released, KeyCode}, math::{vec2, Rect}, texture::{draw_texture_ex, DrawTextureParams, Texture2D}};
+use std::f32::NEG_INFINITY;
 
-use super::{ball::{Ball, BALL_SIZE}, level::{Level, LEVEL_WIDTH, TILE_GAP, TILE_WIDTH}};
+use macroquad::{color::WHITE, input::{is_key_down, is_key_pressed, is_key_released, KeyCode}, math::{vec2, Rect, Vec2}, texture::{draw_texture_ex, DrawTextureParams, Texture2D}};
+
+use super::{ball::{Ball, BALL_SIZE}, bullet::Bullet, level::Level};
 
 const KEY_CARRY: KeyCode = KeyCode::Space;
 
+const PADDLE_SPEED: f32 = 100.0;
+
 const WIDTH_DEFAULT: f32 = 20.0;
-const WIDTH_LONG:    f32 = 30.0;
+const WIDTH_LONG:    f32 = 40.0;
+const GROWTH_SPEED:  f32 = 40.0;
 
 pub struct Paddle {
     x: f32,
-    long:      bool,
-    gun:       bool,
-    can_carry: bool,
+    vel: f32,
+    width: f32,
+    target_width: f32,
+    
+    lives: usize,
+
+    carries: usize,
     carry: Option<Ball>,
     carry_x: f32,
+
+    long:       Option<f32>,
+    gun:        Option<f32>,
+    balls_safe: Option<f32>,
+
+    shot_timer: f32,
 }
 
 impl Paddle {
-    pub fn new() -> Self {
+    pub fn new(x: Option<f32>, lives: Option<usize>) -> Self {
         Self {
-            x: 0.0,
-            long: false,
-            gun: false,
-            can_carry: true,
-            carry: Some(Ball::new(vec2(0.0, 0.0), vec2(1.0, -1.0))),
-            carry_x: 0.0,
+            x: x.unwrap_or((Level::view_size().x - WIDTH_DEFAULT) / 2.0),
+            vel: 0.0,
+            width: WIDTH_DEFAULT,
+            target_width: WIDTH_DEFAULT,
+
+            lives: lives.unwrap_or(3),
+
+            carries: 0,
+            carry: Some(Ball::new(vec2(0.0, 0.0), f32::to_radians(90.0))),
+            carry_x: (WIDTH_DEFAULT - BALL_SIZE) / 2.0,
+
+            long:       None,
+            gun:        None,
+            balls_safe: None,
+
+            shot_timer: NEG_INFINITY,
         }
+    }
+
+    // How far 'x' is from the center to the edge of the paddle, mapped from -1.0 (left edge) to 0.0 (center) to 1.0 (right edge)  
+    pub fn center_dist(&self, x: f32) -> f32 {
+        let center = self.x + self.width / 2.0;
+        let dist = x - center;
+        (dist / (self.width / 2.0)).clamp(-1.0, 1.0)
+    }
+
+    pub fn vel(&self) -> f32 {
+        self.vel
+    }
+
+    pub fn y() -> f32 {
+        Level::view_size().y - 10.0
+    }
+
+    pub fn lives(&self) -> usize {
+        self.lives
+    }
+    pub fn carries(&self) -> usize {
+        self.carries
+    }
+
+    pub fn can_carry(&self) -> bool {
+        self.carries != 0 && self.carry.is_none() && is_key_down(KEY_CARRY)
+    }
+    pub fn carry(&mut self, ball: Ball) {
+        self.carries = self.carries.saturating_sub(1);
+        self.carry_x = ball.pos().x - self.x;
+        self.carry = Some(ball);
+    }
+
+    pub fn powerup_gun(&mut self) {
+        self.gun = Some(10.0);
+    }
+    pub fn powerup_grow(&mut self) {
+        self.long = Some(15.0);
+    }
+    pub fn powerup_balls_safe(&mut self) {
+        self.balls_safe = Some(7.0);
+    }
+    pub fn powerup_carry(&mut self) {
+        if self.carries <3 { // awwww :3
+            self.carries += 1
+        }
+    }
+
+    pub fn balls_safe(&self) -> bool {
+        self.balls_safe.is_some()
     }
 
     // The rect of the center bit of the paddle
     pub fn center_rect(&self) -> Rect {
-        Rect::new(self.x + 1.0, Paddle::y(), self.width() - 2.0, 4.0)
+        Rect::new(self.x + 1.0, Paddle::y(), self.width - 2.0, 4.0)
     }
 
     // The one used for collision with the ball / world
@@ -40,43 +115,59 @@ impl Paddle {
             r.x - 1.0,
             r.y,
             r.w,
-            0.1,
+            0.01,
         )
     }
 
-    pub fn width(&self) -> f32 {
-        match self.long {
-            false => WIDTH_DEFAULT,
-            true => WIDTH_LONG,
+    pub fn update(&mut self, delta: f32, bullets: &mut Vec<Bullet>) -> Option<Ball> {
+        let prev_x = self.x;
+        // Powerup timers
+        for timer in [&mut self.gun, &mut self.long, &mut self.balls_safe] {
+            if let Some(t) = timer {
+                *t -= delta;
+            }
+            if timer.is_some_and(|t| t <= 0.0) {
+                *timer = None;
+            }
         }
-    }
 
-    pub fn y() -> f32 {
-        Level::view_size().y - 8.0
-    }
+        // Shooting
+        self.shot_timer -= delta;
+        if is_key_pressed(KeyCode::Q) && self.gun.is_some() && self.shot_timer <= 0.0 {
+            self.shot_timer = 0.2;
+            bullets.push(Bullet::new(vec2(self.x, Paddle::y())));
+            bullets.push(Bullet::new(vec2(self.x + self.width, Paddle::y())));
+        }
 
-    pub fn can_carry(&self) -> bool {
-        self.can_carry && self.carry.is_none() && is_key_down(KEY_CARRY)
-    }
-    pub fn carry(&mut self, ball: Ball) {
-        self.carry_x = ball.pos().x - self.x;
-        self.carry = Some(ball);
-    }
-
-    pub fn update(&mut self, delta: f32) -> Option<Ball> {
+        // Growing / shrinking
+        self.target_width = match self.long {
+            Some(_) => WIDTH_LONG,
+            _ => WIDTH_DEFAULT,
+        };
+        if self.width != self.target_width {
+            let change = if self.width > self.target_width { -1.0 } else { 1.0 } * delta * GROWTH_SPEED;
+            self.width = (self.width + change).clamp(self.width.min(self.target_width), self.width.max(self.target_width));
+            
+            self.x -= change / 2.0;
+            self.carry_x += prev_x - self.x;
+        }
+        
+        self.vel = 0.0;
         if is_key_down(KeyCode::A) {
-            self.x -= delta * 100.0;
+            self.x -= delta * PADDLE_SPEED;
+            self.vel -= 1.0;
         }
         if is_key_down(KeyCode::D) {
-            self.x += delta * 100.0;
+            self.x += delta * PADDLE_SPEED;
+            self.vel += 1.0;
         }
 
-        self.x = self.x.clamp(0.0, Level::view_size().x - self.width());
+        self.x = self.x.clamp(0.0, Level::view_size().x - self.width);
 
-        let width = self.width();
         if let Some(carry) = &mut self.carry {
-            self.carry_x = self.carry_x.clamp(0.0, width - BALL_SIZE);
+            self.carry_x = self.carry_x.clamp(0.0, self.width - BALL_SIZE);
             carry.set_pos(vec2(self.x + self.carry_x, Paddle::y() - 4.0));
+            carry.set_vel(Vec2::from_angle(45.0_f32.to_radians()) * if self.vel == -1.0 { -1.0 } else { 1.0 })
         }
 
         if is_key_released(KEY_CARRY) {
@@ -88,18 +179,23 @@ impl Paddle {
     pub fn draw(&self, texture: &Texture2D) {
         let center_rect = self.center_rect();
 
+        let paddle_texture_offset = match self.gun {
+            Some(t) if t > 2.0 || t % 0.2 >= 0.1 => 4.0,
+            _ => 0.0,
+        };
+
         // Sides
         draw_texture_ex(texture, self.x, Paddle::y(), WHITE, DrawTextureParams {
-            source: Some(Rect::new(6.0, 8.0, 1.0, 4.0)),
+            source: Some(Rect::new(6.0, 8.0, 1.0, 4.0).offset(vec2(paddle_texture_offset, 0.0))),
             ..Default::default()
         });
         draw_texture_ex(texture, self.x + center_rect.w + 1.0, Paddle::y(), WHITE, DrawTextureParams {
-            source: Some(Rect::new(8.0, 8.0, 1.0, 4.0)),
+            source: Some(Rect::new(8.0, 8.0, 1.0, 4.0).offset(vec2(paddle_texture_offset, 0.0))),
             ..Default::default()
         });
         // Center
         draw_texture_ex(texture, center_rect.x, Paddle::y(), WHITE, DrawTextureParams {
-            source: Some(Rect::new(7.0, 8.0, 1.0, 4.0)),
+            source: Some(Rect::new(7.0, 8.0, 1.0, 4.0).offset(vec2(paddle_texture_offset, 0.0))),
             dest_size: Some(center_rect.size()),
             ..Default::default()
         });
