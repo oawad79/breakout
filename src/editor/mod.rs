@@ -18,6 +18,7 @@ impl Scene for Editor {
     fn update(&mut self) {
         
     }
+
     fn draw(&self, texture: &Texture2D) {
         
     }
