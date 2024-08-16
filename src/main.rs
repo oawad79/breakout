@@ -4,14 +4,8 @@ use macroquad::prelude::*;
 
 pub mod game;
 pub mod editor;
+pub mod gui;
 pub mod text_renderer;
-
-pub trait Scene {
-    fn new() -> Self;
-    fn update(&mut self);
-    fn draw(&self, texture: &Texture2D);
-}
-
 
 fn window_conf()-> Conf {
     let window_size = Level::view_size();
@@ -26,7 +20,7 @@ fn window_conf()-> Conf {
 
 #[macroquad::main(window_conf())]
 async fn main() {
-    let _editor = Editor::new();
+    let mut editor = Editor::new();
 
     let mut game = Game::new(Level::new(), None, None);
 
@@ -38,8 +32,8 @@ async fn main() {
     loop {
         set_camera(&camera);
 
-        game.update();
-        game.draw(&texture);
+        editor.update(&camera);
+        editor.draw(&texture);
 
         next_frame().await;
     }

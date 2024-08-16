@@ -63,11 +63,12 @@ impl Paddle {
     pub fn vel(&self) -> f32 {
         self.vel
     }
-
+    pub fn x(&self) -> f32 {
+        self.x
+    }
     pub fn y() -> f32 {
         Level::view_size().y - 10.0
     }
-
     pub fn lives(&self) -> usize {
         self.lives
     }

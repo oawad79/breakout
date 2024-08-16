@@ -31,6 +31,11 @@ impl Game {
             bullets:  Vec::with_capacity(20),
         }
     }
+
+    pub fn paddle_pos(&self) -> f32 {
+        self.paddle.x()
+    }
+    
     pub fn update(&mut self) {
         let delta = macroquad::time::get_frame_time();
 
@@ -74,8 +79,10 @@ impl Game {
                     PowerupKind::PaddleGrow  => self.paddle.powerup_grow(),
                     PowerupKind::PaddleGun   => self.paddle.powerup_gun(),
                     PowerupKind::BallsSafe   => self.paddle.powerup_balls_safe(),
+                    
                     PowerupKind::Zap => println!("zap!"), // TODO: ZAP!
-                    _ => {}
+                    PowerupKind::BallsTrail => println!("todo.."),
+                    PowerupKind::BallsFive => println!("todo.."),
                 };
             }
 
@@ -104,7 +111,7 @@ impl Game {
     }
 
     pub fn draw(&self, texture: &Texture2D) {
-        // clear_background(BLACK);
+        clear_background(BLACK);
 
         // Actual stuff
         for p in &self.powerups {

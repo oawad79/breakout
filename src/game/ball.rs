@@ -1,4 +1,4 @@
-use macroquad::{color::{PINK, WHITE}, math::{vec2, BVec2, Rect, Vec2}, rand::gen_range, shapes::draw_line, texture::{draw_texture_ex, DrawTextureParams, Texture2D}};
+use macroquad::{color::WHITE, math::{vec2, BVec2, Rect, Vec2}, texture::{draw_texture_ex, DrawTextureParams, Texture2D}};
 
 use super::{level::{Level, Tile}, paddle::Paddle};
 
@@ -74,6 +74,7 @@ impl Ball {
             level.break_tile(i);
         }
 
+        // TODO: Paddle physics
         let mut hit_paddle = false;
         if self.vel.y > 0.0 && paddle.collision_rect().overlaps(&rect.offset(vec2(prev_pos.x, self.pos.y))) {
             self.pos = prev_pos;
