@@ -20,9 +20,11 @@ fn window_conf()-> Conf {
 
 #[macroquad::main(window_conf())]
 async fn main() {
+    macroquad::rand::srand(macroquad::miniquad::date::now() as _);
+
     let mut editor = Editor::new();
 
-    let mut game = Game::new(Level::new(), None, None);
+    let mut game = Game::new(Level::new(), None, game::Lives::None);
 
     let view_size = Level::view_size();
     let camera = Camera2D::from_display_rect(Rect::new(0.0, view_size.y, view_size.x, -view_size.y));

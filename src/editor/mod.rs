@@ -2,9 +2,31 @@ use std::collections::{HashMap, VecDeque};
 
 use macroquad::{camera::Camera2D, color::{Color, WHITE}, input::{clear_input_queue, get_char_pressed, is_key_pressed, is_mouse_button_pressed, is_mouse_button_released, mouse_position, KeyCode, MouseButton}, math::{vec2, Rect}, shapes::{draw_line, draw_rectangle, draw_rectangle_lines}, texture::{draw_texture_ex, DrawTextureParams, Texture2D}, window::clear_background};
 
-use crate::{game::{level::{Level, Tile, LEVEL_HEIGHT, LEVEL_HEIGHT_PADDING_TOP, LEVEL_WIDTH, LEVEL_NAME_LEN, TILE_GAP, TILE_HEIGHT, TILE_WIDTH}, Game}, gui::{Button, Gui, Id}, text_renderer::{char_valid, render_text, TextAlign}};
+use crate::{game::{level::{Level, Tile, TileArray, LEVEL_HEIGHT, LEVEL_HEIGHT_PADDING_TOP, LEVEL_NAME_LEN, LEVEL_WIDTH, TILE_GAP, TILE_HEIGHT, TILE_WIDTH}, Game, Lives}, gui::{Button, Gui, Id}, text_renderer::{char_valid, render_text, TextAlign}};
 
-const TILES_BUTTONS: &[Tile] = &[Tile::Gold, Tile::Metal, Tile::Stone, Tile::StoneCracked, Tile::Red, Tile::Orange, Tile::Yellow, Tile::Green, Tile::Cyan, Tile::Blue, Tile::Pink, Tile::Air];
+pub mod timewarp;
+
+const TILES_BUTTONS: &[Tile] = &[
+    Tile::White,
+    Tile::Red,
+    Tile::Orange,
+    Tile::Yellow,
+    Tile::Green,
+    Tile::Cyan,
+    Tile::Blue,
+    Tile::Purple,
+    Tile::Pink,
+    Tile::Brown,
+    Tile::Black,
+    Tile::Stone,
+    Tile::StoneCracked,
+    Tile::Metal,
+    Tile::Gold,
+    Tile::Air
+];
+
+const ARROW_TEXTURE: Rect = Rect { x: 158.0, y: 8.0, w: 7.0, h: 9.0 };
+const UNDO_TEXTURE: Rect = Rect { x: 166.0, y: 8.0, w: 7.0, h: 6.0 };
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum ClickAction {
@@ -15,14 +37,15 @@ pub struct Editor {
     gui: Gui,
     ids_begin: Id,
 
-    draw_type: Option<Tile>,
+    draw_type: Tile,
     click_action: ClickAction,
     editing_name: bool,
     flashing_timer: f32,
 
     level: Level,
-    undo_states: VecDeque<Level>,
-    redo_states: Vec<Level>,
+    previous_state: TileArray,
+    undo_states: VecDeque<TileArray>,
+    redo_states: Vec<TileArray>,
 
     game: Option<Game>,
     paddle_pos: Option<f32>,
@@ -45,10 +68,10 @@ impl Editor {
         }
         let ids_begin = TILES_BUTTONS.len();
 
-        buttons.insert(ids_begin,   Button::new(Rect::new(view_size.x - 47.0, view_size.y -  8.0, 19.0, 8.0))); // New
-        buttons.insert(ids_begin+1, Button::new(Rect::new(view_size.x - 27.0, view_size.y -  8.0, 27.0, 8.0))); // Save
-        buttons.insert(ids_begin+2, Button::new(Rect::new(view_size.x - 19.0, view_size.y - 17.0,  9.0, 8.0))); // Undo
-        buttons.insert(ids_begin+3, Button::new(Rect::new(view_size.x -  9.0, view_size.y - 17.0,  9.0, 8.0))); // Redo
+        buttons.insert(ids_begin,   Button::new(Rect::new(view_size.x - 47.0, view_size.y - 29.0, 19.0, 8.0))); // New
+        buttons.insert(ids_begin+1, Button::new(Rect::new(view_size.x - 27.0, view_size.y - 29.0, 27.0, 8.0))); // Save
+        buttons.insert(ids_begin+2, Button::new(Rect::new(view_size.x - 19.0, view_size.y - 38.0,  9.0, 8.0))); // Undo
+        buttons.insert(ids_begin+3, Button::new(Rect::new(view_size.x -  9.0, view_size.y - 38.0,  9.0, 8.0))); // Redo
 
         buttons.insert(ids_begin+4, Button::new(Rect::new(view_size.x - 97.0, 0.0, 97.0, 7.0))); // Name
 
@@ -58,12 +81,12 @@ impl Editor {
             editing_name: false,
             flashing_timer: 0.0,
 
-            draw_type: Some(Tile::Stone),
+            draw_type: Tile::Red,
             click_action: ClickAction::None,
             
             level: Level::new(),
-            // undo_states: VecDeque::with_capacity(50),
-            undo_states: vec![Level::new(), Level::new2()].into(),
+            previous_state: [Tile::Air; LEVEL_WIDTH*LEVEL_HEIGHT],
+            undo_states: VecDeque::with_capacity(50),
             redo_states: Vec::with_capacity(50),
 
             game: None,
@@ -77,7 +100,7 @@ impl Editor {
                 self.paddle_pos = self.game.as_ref().map(|g| g.paddle_pos());
                 self.game = None;
             } else {
-                self.game = Some(Game::new(self.level.clone(), self.paddle_pos, None));
+                self.game = Some(Game::new(self.level.clone(), self.paddle_pos, Lives::Infinite));
             }
             clear_input_queue();
         }
@@ -93,14 +116,16 @@ impl Editor {
         // Selecting a tile type
         for (id, tile) in TILES_BUTTONS.iter().enumerate() {
             if self.gui.button(id).is_some_and(|b| b.released()) {
-                self.draw_type = match self.draw_type == Some(*tile) {
-                    false => Some(*tile),
-                    true => None,
-                };
+                self.draw_type = *tile;
             }
         }
         // New
         if self.gui.button(self.ids_begin).is_some_and(|b| b.released()) {
+            if self.previous_state != *self.level.tiles() {
+                self.previous_state = self.level.tiles().clone();
+                self.undo_states.push_front(self.previous_state);
+                self.redo_states.clear();
+            }
             self.level = Level::new();
         }
         // Editing name
@@ -130,48 +155,55 @@ impl Editor {
         }
 
         // Undo / Redo
-        // TODO: Push undo states after adding
-        // TODO: Make it so undo/redo_states are just a hashset of what changed rather than a whole level.
         if self.gui.button(self.ids_begin+2).is_some_and(|b| b.released()) {
-            if let Some(l) = self.undo_states.pop_front() {
-                self.redo_states.push(self.level.clone());
-                self.level = l;
+            if let Some(undo_state) = self.undo_states.pop_front() {
+                self.redo_states.push(self.level.tiles().clone());
+                *self.level.tiles_mut() = undo_state;
             }
         }
         if self.gui.button(self.ids_begin+3).is_some_and(|b| b.released()) {
-            if let Some(l) = self.redo_states.pop() {
-                self.undo_states.push_front(self.level.clone());
-                self.level = l;
+            if let Some(redo_state) = self.redo_states.pop() {
+                self.undo_states.push_front(self.level.tiles().clone());
+                *self.level.tiles_mut() = redo_state;
             }
         }
 
         // Editing tiles
-        let hovered_tile_pos = ((mouse_pos - vec2(0.0, LEVEL_HEIGHT_PADDING_TOP as f32 * (TILE_HEIGHT * TILE_GAP) + TILE_GAP)) / (vec2(TILE_WIDTH, TILE_HEIGHT) + TILE_GAP)).floor();
-        let hovered_tile_index = match hovered_tile_pos.x >= 0.0 && hovered_tile_pos.x < LEVEL_WIDTH as f32 && hovered_tile_pos.y >= 0.0 && hovered_tile_pos.y < LEVEL_HEIGHT as f32 {
-            false => None,
-            true => Some(hovered_tile_pos.y as usize * LEVEL_WIDTH + hovered_tile_pos.x as usize),
-        };
+        let level_area_rect = Rect::new(0.0, LEVEL_HEIGHT_PADDING_TOP as f32 * (TILE_HEIGHT + TILE_GAP), LEVEL_WIDTH as f32 * (TILE_WIDTH + TILE_GAP), LEVEL_HEIGHT as f32 * (TILE_HEIGHT + TILE_GAP));
 
-        for (mouse_button, click_action) in [
-            (MouseButton::Left, ClickAction::Draw),
-            (MouseButton::Right, ClickAction::Erase),
-        ] {
-            if is_mouse_button_pressed(mouse_button) {
-                self.click_action = click_action;
-            }
-            if is_mouse_button_released(mouse_button) && self.click_action == click_action {
-                self.click_action = ClickAction::None;
-            }
-        }
-        
-        if let Some(tile_index) = hovered_tile_index {
-            let tile_type = match (self.draw_type, self.click_action) {
-                (Some(t), ClickAction::Draw)  => Some(t),
-                (_,       ClickAction::Erase) => Some(Tile::Air),
-                _ => None
+        if level_area_rect.contains(mouse_pos) {
+            let hovered_tile_pos = ((mouse_pos - vec2(0.0, LEVEL_HEIGHT_PADDING_TOP as f32 * (TILE_HEIGHT * TILE_GAP) + TILE_GAP)) / (vec2(TILE_WIDTH, TILE_HEIGHT) + TILE_GAP)).floor();
+            let hovered_tile_index = match hovered_tile_pos.x >= 0.0 && hovered_tile_pos.x < LEVEL_WIDTH as f32 && hovered_tile_pos.y >= 0.0 && hovered_tile_pos.y < LEVEL_HEIGHT as f32 {
+                false => None,
+                true => Some(hovered_tile_pos.y as usize * LEVEL_WIDTH + hovered_tile_pos.x as usize),
             };
-            if let Some(tile_type) = tile_type {
-                self.level.tiles_mut().get_mut(tile_index).map(|t| *t = tile_type);
+    
+            for (mouse_button, click_action) in [
+                (MouseButton::Left, ClickAction::Draw),
+                (MouseButton::Right, ClickAction::Erase),
+            ] {
+                if is_mouse_button_pressed(mouse_button) {
+                    self.click_action = click_action;
+                    self.previous_state = self.level.tiles().clone();
+                }
+                if is_mouse_button_released(mouse_button) && self.click_action == click_action {
+                    self.click_action = ClickAction::None;
+                    if self.previous_state != *self.level.tiles() {
+                        self.undo_states.push_front(self.previous_state);
+                        self.redo_states.clear();
+                    }
+                }
+            }
+            
+            if let Some(tile_index) = hovered_tile_index {
+                let tile_type = match self.click_action {
+                    ClickAction::Draw  => Some(self.draw_type),
+                    ClickAction::Erase => Some(Tile::Air),
+                    _ => None
+                };
+                if let Some(tile_type) = tile_type {
+                    self.level.tiles_mut().get_mut(tile_index).map(|t| *t = tile_type);
+                }
             }
         }
     }
@@ -201,7 +233,8 @@ impl Editor {
         self.level.draw(texture);
 
         // Gui
-        draw_line(0.0, view_size.y - 8.5, view_size.x, view_size.y - 8.5, 1.0, grid_col);
+        draw_line(0.0, view_size.y -  8.5, view_size.x, view_size.y -  8.5, 1.0, grid_col);
+        draw_line(0.0, view_size.y - 20.5, view_size.x, view_size.y - 20.5, 1.0, grid_col);
 
         // Tile buttons
         for (id, tile) in TILES_BUTTONS.iter().enumerate() {
@@ -219,23 +252,23 @@ impl Editor {
                 ..Default::default()
             });
             // Arrow
-            if self.draw_type == Some(*tile) {
+            if self.draw_type == *tile {
                 draw_texture_ex(texture, rect.x + (rect.w - 1.0 - 7.0) / 2.0, rect.y - 9.0 - 3.0, WHITE, DrawTextureParams {
-                    source: Some(Rect::new(148.0, 1.0, 7.0, 9.0)),
+                    source: Some(ARROW_TEXTURE),
                     ..Default::default()
                 });
             }
         }
 
         let button_bg_idle = Color::from_rgba(0, 0, 0, 0);
-        let button_bg_held = Color::from_rgba(23, 56, 96, 255);
+        let button_bg_hover = Color::from_rgba(23, 56, 96, 255);
         for i in 0..=3 {
             let button = match self.gui.button(self.ids_begin + i) {
                 Some(b) => b,
                 None => continue,
             };
             let rect = button.rect();
-            draw_rectangle(rect.x, rect.y, rect.w, rect.h, if button.hovered() { button_bg_held } else { button_bg_idle });
+            draw_rectangle(rect.x, rect.y, rect.w, rect.h, if button.hovered() { button_bg_hover } else { button_bg_idle });
             draw_rectangle_lines(rect.x-1.0, rect.y-1.0, rect.w+2.0, rect.h+2.0, 2.0, grid_col);
 
             if i == 0 || i == 1 {
@@ -245,7 +278,7 @@ impl Editor {
             if i == 2 || i == 3 {
                 let grey = i == 2 && self.undo_states.is_empty() || i == 3 && self.redo_states.is_empty();
                 draw_texture_ex(texture, rect.x + 1.0, rect.y + 1.0, if grey {grey_col} else {WHITE}, DrawTextureParams {
-                    source: Some(Rect::new(148.0, 11.0, 7.0, 6.0)),
+                    source: Some(UNDO_TEXTURE),
                     flip_x: i == 3,
                     ..Default::default()
                 });
@@ -259,7 +292,7 @@ impl Editor {
             if self.editing_name {
                 if let Some(button) = self.gui.button(self.ids_begin+4) {
                     let rect = button.rect();
-                    draw_rectangle(rect.x, rect.y, rect.w, rect.h, button_bg_held);
+                    draw_rectangle(rect.x, rect.y, rect.w, rect.h, button_bg_hover);
                 }
             }
         }

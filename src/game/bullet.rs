@@ -5,6 +5,8 @@ use super::level::Level;
 const BULLET_SPEED: f32 = 200.0;
 const BULLET_HEIGHT: f32 = 6.0;
 
+pub const BULLET_TEXTURE: Rect = Rect { x: 130.0, y: 8.0, w: 1.0, h: 1.0 };
+
 pub struct Bullet {
     pos: Vec2,
 }
@@ -30,7 +32,7 @@ impl Bullet {
 
     pub fn draw(&self, texture: &Texture2D) {
         draw_texture_ex(texture, self.pos.x, self.pos.y - BULLET_HEIGHT, WHITE, DrawTextureParams {
-            source: Some(Rect::new(14.0, 8.0, 1.0, 1.0)),
+            source: Some(BULLET_TEXTURE),
             dest_size: Some(vec2(1.0, BULLET_HEIGHT)),
             ..Default::default()
         })

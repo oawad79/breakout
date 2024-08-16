@@ -5,6 +5,8 @@ use super::{level::{Level, Tile}, paddle::Paddle};
 pub const BALL_SIZE: f32 = 4.0;
 pub const BALL_SPEED: f32 = 70.0;
 
+pub const BALL_TEXTURE: Rect = Rect { x: 113.0, y: 8.0, w: 4.0, h: 4.0 };
+
 pub struct Ball {
     pos: Vec2,
     vel: Vec2,
@@ -132,7 +134,7 @@ impl Ball {
 
     pub fn draw(&self, texture: &Texture2D) {
         draw_texture_ex(texture, self.pos.x, self.pos.y, WHITE, DrawTextureParams {
-            source: Some(Rect::new(1.0, 8.0, 4.0, 4.0)),
+            source: Some(BALL_TEXTURE),
             ..Default::default()
         });
     }

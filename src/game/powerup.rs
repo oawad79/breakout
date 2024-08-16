@@ -2,7 +2,7 @@ use macroquad::{color::WHITE, math::{vec2, Rect, Vec2}, rand::gen_range, texture
 
 use super::{level::Level, paddle::Paddle};
 
-const POWERUP_TEX_ORIGIN: Vec2 = vec2(49.0, 8.0); 
+const POWERUP_TEX_ORIGIN: Vec2 = vec2(15.0, 8.0); 
 const POWERUP_SIZE: Vec2 = vec2(13.0, 7.0); 
 
 #[derive(Clone, Copy)]

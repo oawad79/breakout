@@ -2,7 +2,7 @@ use macroquad::{color::WHITE, math::{vec2, Rect, Vec2}, rand::gen_range, texture
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Tile {
-    Red, Orange, Yellow, Green, Cyan, Blue, Pink,
+    White, Red, Orange, Yellow, Green, Cyan, Blue, Purple, Pink, Brown, Black,
     Stone, StoneCracked,
     Metal, Gold,
     Air,
@@ -51,82 +51,28 @@ pub const TILE_GAP: f32 = 1.0;
 
 pub const LEVEL_NAME_LEN: usize = 16;
 
+pub type TileArray = [Tile; LEVEL_WIDTH*LEVEL_HEIGHT];
+
 #[derive(Clone)]
 pub struct Level {
-    tiles: [Tile; LEVEL_WIDTH*LEVEL_HEIGHT],
+    tiles: TileArray,
     powerup_buffer: Vec<usize>,
     name: String,
 }
 
 impl Level {
-    pub fn new2() -> Self {
-        let mut tiles = [Tile::Air; LEVEL_WIDTH*LEVEL_HEIGHT];
-        
-        for (i, t) in &mut tiles.iter_mut().rev().enumerate() {
-            *t = match gen_range(0, 13) {
-                1  => Tile::Red,
-                2  => Tile::Orange,
-                3  => Tile::Yellow,
-                4  => Tile::Green,
-                5  => Tile::Cyan,
-                6  => Tile::Blue,
-                7  => Tile::Pink,
-                8  => Tile::Stone,
-                9  => Tile::StoneCracked,
-                10 => Tile::Metal,
-                11 => Tile::Gold,
-                _  => Tile::Air,
-            };
-        }
-        Self {
-            tiles,
-            powerup_buffer: Vec::with_capacity(10),
-            name: String::new(),
-        }
-    }
     pub fn new() -> Self {
-        let mut tiles = [Tile::Air; LEVEL_WIDTH*LEVEL_HEIGHT];
-        
-        for (i, t) in &mut tiles.iter_mut().rev().enumerate() {
-            // *t = match gen_range(0, 13) {
-            //     1  => Tile::Red,
-            //     2  => Tile::Orange,
-            //     3  => Tile::Yellow,
-            //     4  => Tile::Green,
-            //     5  => Tile::Cyan,
-            //     6  => Tile::Blue,
-            //     7  => Tile::Pink,
-            //     8  => Tile::Stone,
-            //     9  => Tile::StoneCracked,
-            //     10 => Tile::Metal,
-            //     11 => Tile::Gold,
-            //     _  => Tile::Air,
-            // };
-            // *t = Tile::Metal;
-            // continue;
-            if (i % LEVEL_WIDTH) == 0 || (i % LEVEL_WIDTH) == LEVEL_WIDTH - 1 {
-                continue;
-            } 
-            *t = match (i / LEVEL_WIDTH) - 5 {
-                0       => Tile::Stone,
-                1 ..=2  => Tile::Red,
-                3 ..=4  => Tile::Orange,
-                5 ..=6  => Tile::Yellow,
-                7 ..=8  => Tile::Green,
-                9 ..=10 => Tile::Cyan,
-                11..=12 => Tile::Blue,
-                13..=14 => Tile::Pink,
-                _  => Tile::Air,
-            };
-        }
         Self {
-            tiles,
+            tiles: [Tile::Air; LEVEL_WIDTH*LEVEL_HEIGHT],
             powerup_buffer: Vec::with_capacity(10),
             name: String::new(),
         }
     }
 
-    pub fn tiles_mut(&mut self) -> &mut [Tile] {
+    pub fn tiles(&self) -> &TileArray {
+        &self.tiles
+    }
+    pub fn tiles_mut(&mut self) -> &mut TileArray {
         &mut self.tiles
     }
     pub fn name(&self) -> &String {

@@ -1,4 +1,4 @@
-use ball::{Ball, BallHitState, BALL_SIZE};
+use ball::{Ball, BallHitState, BALL_SIZE, BALL_TEXTURE};
 use bullet::Bullet;
 use level::Level;
 use macroquad::{color::{BLACK, WHITE}, math::{vec2, Rect}, texture::{draw_texture_ex, DrawTextureParams, Texture2D}, window::clear_background};
@@ -13,19 +13,33 @@ pub mod powerup;
 pub mod bullet;
 pub mod level;
 
+pub const CARRY_ICON_TEXTURE: Rect = Rect { x: 118.0, y: 8.0, w: 4.0, h: 4.0 };
+
+pub enum Lives {
+    None, Some(usize), Infinite,
+}
+
 pub struct Game {
     level: Level,
     paddle: Paddle,
+    lives: Option<usize>,
     balls:    Vec<Ball>,
     powerups: Vec<Powerup>,
     bullets:  Vec<Bullet>,
 }
 
 impl Game {
-    pub fn new(level: Level, paddle_pos: Option<f32>, lives: Option<usize>) -> Self {
+    pub fn new(level: Level, paddle_pos: Option<f32>, lives: Lives) -> Self {
+        let lives = match lives {
+            Lives::None => Some(3),
+            Lives::Some(l) => Some(l),
+            Lives::Infinite => None
+        };
+
         Self {
             level,
-            paddle: Paddle::new(paddle_pos, lives),
+            paddle: Paddle::new(paddle_pos),
+            lives,
             balls:    Vec::with_capacity(100),
             powerups: Vec::with_capacity(20),
             bullets:  Vec::with_capacity(20),
@@ -35,7 +49,7 @@ impl Game {
     pub fn paddle_pos(&self) -> f32 {
         self.paddle.x()
     }
-    
+
     pub fn update(&mut self) {
         let delta = macroquad::time::get_frame_time();
 
@@ -128,16 +142,16 @@ impl Game {
 
         // HUD
         let mut x = 1.0;
-        for _ in 0..self.paddle.lives() {
+        for _ in 0..self.lives.unwrap_or(0) {
             draw_texture_ex(texture, x, Level::view_size().y - BALL_SIZE - 1.0, WHITE, DrawTextureParams {
-                source: Some(Rect::new(1.0, 8.0, 4.0, 4.0)),
+                source: Some(BALL_TEXTURE),
                 ..Default::default()
             });
             x += BALL_SIZE + 1.0;
         }
         for _ in 0..self.paddle.carries() {
             draw_texture_ex(texture, x, Level::view_size().y - BALL_SIZE - 1.0, WHITE, DrawTextureParams {
-                source: Some(Rect::new(1.0, 13.0, 4.0, 4.0)),
+                source: Some(CARRY_ICON_TEXTURE),
                 ..Default::default()
             });
             x += BALL_SIZE + 1.0;

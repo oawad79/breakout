@@ -12,13 +12,15 @@ const WIDTH_DEFAULT: f32 = 20.0;
 const WIDTH_LONG:    f32 = 40.0;
 const GROWTH_SPEED:  f32 = 40.0;
 
+pub const PADDLE_LEFT_TEXTURE: Rect = Rect { x: 122.0, y: 8.0, w: 1.0, h: 4.0 };
+pub const PADDLE_CENTER_TEXTURE: Rect = Rect { x: 123.0, y: 8.0, w: 1.0, h: 4.0 };
+pub const PADDLE_RIGHT_TEXTURE: Rect = Rect { x: 124.0, y: 8.0, w: 1.0, h: 4.0 };
+
 pub struct Paddle {
     x: f32,
     vel: f32,
     width: f32,
     target_width: f32,
-    
-    lives: usize,
 
     carries: usize,
     carry: Option<Ball>,
@@ -32,14 +34,12 @@ pub struct Paddle {
 }
 
 impl Paddle {
-    pub fn new(x: Option<f32>, lives: Option<usize>) -> Self {
+    pub fn new(x: Option<f32>) -> Self {
         Self {
             x: x.unwrap_or((Level::view_size().x - WIDTH_DEFAULT) / 2.0),
             vel: 0.0,
             width: WIDTH_DEFAULT,
             target_width: WIDTH_DEFAULT,
-
-            lives: lives.unwrap_or(3),
 
             carries: 0,
             carry: Some(Ball::new(vec2(0.0, 0.0), f32::to_radians(90.0))),
@@ -68,9 +68,6 @@ impl Paddle {
     }
     pub fn y() -> f32 {
         Level::view_size().y - 10.0
-    }
-    pub fn lives(&self) -> usize {
-        self.lives
     }
     pub fn carries(&self) -> usize {
         self.carries
@@ -187,16 +184,16 @@ impl Paddle {
 
         // Sides
         draw_texture_ex(texture, self.x, Paddle::y(), WHITE, DrawTextureParams {
-            source: Some(Rect::new(6.0, 8.0, 1.0, 4.0).offset(vec2(paddle_texture_offset, 0.0))),
+            source: Some(PADDLE_LEFT_TEXTURE.offset(vec2(paddle_texture_offset, 0.0))),
             ..Default::default()
         });
         draw_texture_ex(texture, self.x + center_rect.w + 1.0, Paddle::y(), WHITE, DrawTextureParams {
-            source: Some(Rect::new(8.0, 8.0, 1.0, 4.0).offset(vec2(paddle_texture_offset, 0.0))),
+            source: Some(PADDLE_RIGHT_TEXTURE.offset(vec2(paddle_texture_offset, 0.0))),
             ..Default::default()
         });
         // Center
         draw_texture_ex(texture, center_rect.x, Paddle::y(), WHITE, DrawTextureParams {
-            source: Some(Rect::new(7.0, 8.0, 1.0, 4.0).offset(vec2(paddle_texture_offset, 0.0))),
+            source: Some(PADDLE_CENTER_TEXTURE.offset(vec2(paddle_texture_offset, 0.0))),
             dest_size: Some(center_rect.size()),
             ..Default::default()
         });
