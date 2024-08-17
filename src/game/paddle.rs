@@ -85,7 +85,8 @@ impl Paddle {
         self.carry = Some(ball);
     }
     pub fn carry_new(&mut self) {
-        self.carry = Some(Ball::new(vec2((self.width - BALL_SIZE) / 2.0, 0.0), 0.0));
+        self.carry = Some(Ball::new(vec2(0.0, 0.0), 0.0));
+        self.carry_x = (self.width - BALL_SIZE) / 2.0;
     }
 
     pub fn powerup_gun(&mut self) {

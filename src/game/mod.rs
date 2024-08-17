@@ -1,7 +1,7 @@
 use ball::{Ball, BallHitState, BALL_SIZE, BALL_TEXTURE};
 use bullet::Bullet;
 use level::Level;
-use macroquad::{color::{BLACK, WHITE}, math::{vec2, Rect}, texture::{draw_texture_ex, DrawTextureParams, Texture2D}, window::clear_background};
+use macroquad::{color::{Color, WHITE}, color_u8, math::{vec2, Rect}, texture::{draw_texture_ex, DrawTextureParams, Texture2D}, window::clear_background};
 use paddle::Paddle;
 use powerup::{Powerup, PowerupHitState, PowerupKind};
 
@@ -14,10 +14,13 @@ pub mod bullet;
 pub mod level;
 
 pub const CARRY_ICON_TEXTURE: Rect = Rect { x: 118.0, y: 8.0, w: 4.0, h: 4.0 };
+pub const BG_COL: Color = color_u8!(25, 31, 58, 255);
 
 pub enum Lives {
     Default, Some(usize), Infinite,
 }
+
+// TODO: Check if ball is stuck and dispense another one after 20 seconds of no breaking or hitting
 
 pub struct Game {
     level: Level,
@@ -135,7 +138,7 @@ impl Game {
     }
 
     pub fn draw(&self, texture: &Texture2D) {
-        clear_background(BLACK);
+        clear_background(BG_COL);
 
         // Actual stuff
         for p in &self.powerups {
