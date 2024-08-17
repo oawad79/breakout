@@ -16,7 +16,7 @@ pub mod level;
 pub const CARRY_ICON_TEXTURE: Rect = Rect { x: 118.0, y: 8.0, w: 4.0, h: 4.0 };
 
 pub enum Lives {
-    None, Some(usize), Infinite,
+    Default, Some(usize), Infinite,
 }
 
 pub struct Game {
@@ -31,7 +31,7 @@ pub struct Game {
 impl Game {
     pub fn new(level: Level, paddle_pos: Option<f32>, lives: Lives) -> Self {
         let lives = match lives {
-            Lives::None => Some(3),
+            Lives::Default => Some(2),
             Lives::Some(l) => Some(l),
             Lives::Infinite => None
         };
@@ -75,6 +75,16 @@ impl Game {
         if let Some(new_carry) = new_carry {
             if self.paddle.can_carry() {
                 self.paddle.carry(self.balls.remove(new_carry));
+            }
+        }
+
+        // All balls are gone, the game is lost! Lose a life and either dispense another ball or game-over
+        if self.balls.is_empty() && !self.paddle.carrying() {
+            if self.lives.is_some_and(|l| l == 0) {
+                // Game over!
+            } else {
+                self.lives = self.lives.map(|l| l - 1);
+                self.paddle.carry_new();
             }
         }
 

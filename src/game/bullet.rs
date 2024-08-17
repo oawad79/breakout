@@ -18,10 +18,12 @@ impl Bullet {
     pub fn update(&mut self, delta: f32, level: &mut Level) -> bool {
         self.pos.y -= delta * BULLET_SPEED;
 
+        let rect = Rect::new(self.pos.x, self.pos.y + BULLET_HEIGHT, 2.0, 1.0);
         let mut hit_tile = None;
         for (i, t) in level.tiles_mut().iter_mut().enumerate() {
-            if Level::tile_rect(i).contains(self.pos + vec2(0.0, BULLET_HEIGHT)) && t.breakable() {
+            if Level::tile_rect(i).overlaps(&rect) && t.breakable() {
                 hit_tile = Some(i);
+                break;
             }
         }
         if let Some(i) = hit_tile {

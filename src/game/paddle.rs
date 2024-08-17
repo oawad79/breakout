@@ -73,6 +73,9 @@ impl Paddle {
         self.carries
     }
 
+    pub fn carrying(&self) -> bool {
+        self.carry.is_some()
+    }
     pub fn can_carry(&self) -> bool {
         self.carries != 0 && self.carry.is_none() && is_key_down(KEY_CARRY)
     }
@@ -80,6 +83,9 @@ impl Paddle {
         self.carries = self.carries.saturating_sub(1);
         self.carry_x = ball.pos().x - self.x;
         self.carry = Some(ball);
+    }
+    pub fn carry_new(&mut self) {
+        self.carry = Some(Ball::new(vec2((self.width - BALL_SIZE) / 2.0, 0.0), 0.0));
     }
 
     pub fn powerup_gun(&mut self) {

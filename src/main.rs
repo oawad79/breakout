@@ -24,7 +24,7 @@ async fn main() {
 
     let mut editor = Editor::new();
 
-    let mut game = Game::new(Level::new(), None, game::Lives::None);
+    let mut game = Game::new(Level::new(), None, game::Lives::Default);
 
     let view_size = Level::view_size();
     let camera = Camera2D::from_display_rect(Rect::new(0.0, view_size.y, view_size.x, -view_size.y));

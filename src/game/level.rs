@@ -1,5 +1,20 @@
 use macroquad::{color::WHITE, math::{vec2, Rect, Vec2}, rand::gen_range, texture::{draw_texture_ex, DrawTextureParams, Texture2D}};
 
+pub const LEVEL_WIDTH: usize = 16;
+pub const LEVEL_HEIGHT: usize = 22;
+
+pub const LEVEL_HEIGHT_PADDING_TOP: usize = 2;
+pub const LEVEL_HEIGHT_PADDING_BOTTOM: usize = 6;
+
+pub const TILE_WIDTH: f32 = 11.0;
+pub const TILE_HEIGHT: f32 = 6.0;
+pub const TILE_GAP: f32 = 1.0;
+
+pub const LEVEL_NAME_LEN: usize = 16;
+
+pub type TileArray = [Tile; LEVEL_WIDTH*LEVEL_HEIGHT];
+
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Tile {
     White, Red, Orange, Yellow, Green, Cyan, Blue, Purple, Pink, Brown, Black,
@@ -38,20 +53,6 @@ impl Tile {
         spawn_powerup
     }
 }
-
-pub const LEVEL_WIDTH: usize = 16;
-pub const LEVEL_HEIGHT: usize = 24;
-
-pub const LEVEL_HEIGHT_PADDING_TOP: usize = 2;
-pub const LEVEL_HEIGHT_PADDING_BOTTOM: usize = 7;
-
-pub const TILE_WIDTH: f32 = 11.0;
-pub const TILE_HEIGHT: f32 = 6.0;
-pub const TILE_GAP: f32 = 1.0;
-
-pub const LEVEL_NAME_LEN: usize = 16;
-
-pub type TileArray = [Tile; LEVEL_WIDTH*LEVEL_HEIGHT];
 
 #[derive(Clone)]
 pub struct Level {

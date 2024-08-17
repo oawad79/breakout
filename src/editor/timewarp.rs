@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::game::level::{Level, Tile, TileArray};
+use crate::game::level::{Level, TileArray};
 
 pub struct Timewarp {
     previous_state: TileArray,
@@ -9,8 +9,12 @@ pub struct Timewarp {
 }
 
 impl Timewarp {
-    pub fn new(previous_state: TileArray) -> Self {
-        Self { previous_state, undo_states: VecDeque::with_capacity(50), redo_states: Vec::with_capacity(50) }
+    pub fn new(level: &Level) -> Self {
+        Self {
+            previous_state: level.tiles().clone(),
+            undo_states: VecDeque::with_capacity(50),
+            redo_states: Vec::with_capacity(50)
+        }
     }
 
     pub fn can_undo(&self) -> bool {
@@ -33,25 +37,13 @@ impl Timewarp {
         }
     }
 
-    pub fn immediate_push(&mut self, level: &Level) {
-        if self.previous_state == *level.tiles() {
-            return;
-        }
-        self.previous_state = level.tiles().clone();
-        self.undo_states.push_front(self.previous_state);
-        self.redo_states.clear();
-    }
-
-    pub fn delayed_push_begin(&mut self, level: &Level) {
+    pub fn save_previous_state(&mut self, level: &Level) {
         if self.previous_state == *level.tiles() {
             return;
         }
         self.previous_state = level.tiles().clone();
     }
-    pub fn delayed_push_end(&mut self, level: &Level) {
-        if self.previous_state == *level.tiles() {
-            return;
-        }
+    pub fn push_current_state(&mut self) {
         self.undo_states.push_front(self.previous_state);
         self.redo_states.clear();
     }

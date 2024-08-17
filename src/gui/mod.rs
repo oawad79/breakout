@@ -30,7 +30,7 @@ impl Button {
     }
 }
 
-pub type Id = usize;
+pub type Id = u64;
 
 pub struct Gui {
     buttons: HashMap<Id, Button>,
