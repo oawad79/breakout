@@ -1,183 +1,105 @@
-use ball::{Ball, BallHitState, BALL_SIZE, BALL_TEXTURE};
-use bullet::Bullet;
-use level::Level;
-use macroquad::{color::{Color, WHITE}, color_u8, math::{vec2, Rect}, texture::{draw_texture_ex, DrawTextureParams, Texture2D}, window::clear_background};
-use paddle::Paddle;
-use powerup::{Powerup, PowerupHitState, PowerupKind};
+use level_pack::LevelPack;
+use macroquad::{color::{Color, WHITE}, input::{is_key_pressed, KeyCode}, math::{vec2, Vec2}, shapes::{draw_rectangle, draw_rectangle_lines}, texture::Texture2D};
+use pause_menu::PauseMenu;
+use world::{level::Level, Lives, World, WorldUpdateReturn, BG_COL};
 
-use crate::text_renderer::{render_text, TextAlign};
+use crate::{gui::GRID_COL, text_renderer::{render_text, TextAlign}, Scene, SceneChange};
 
-pub mod paddle;
-pub mod ball;
-pub mod powerup;
-pub mod bullet;
-pub mod level;
+pub mod world;
+pub mod level_pack;
+pub mod pause_menu;
 
-pub const CARRY_ICON_TEXTURE: Rect = Rect { x: 118.0, y: 8.0, w: 4.0, h: 4.0 };
-pub const BG_COL: Color = color_u8!(25, 31, 58, 255);
-
-pub enum Lives {
-    Default, Some(usize), Infinite,
-}
-
-// TODO: Check if ball is stuck and dispense another one after 20 seconds of no breaking or hitting
+pub const KEY_PAUSE: KeyCode = KeyCode::Escape;
 
 pub struct Game {
-    level: Level,
-    paddle: Paddle,
-    lives: Option<usize>,
-    balls:    Vec<Ball>,
-    powerups: Vec<Powerup>,
-    bullets:  Vec<Bullet>,
+    level_pack: LevelPack,
+    current_level: usize,
+    world: World,
+
+    pause_menu: PauseMenu,
+    well_done_timer: Option<f32>,
+    ball_stuck_timer: Option<f32>,
 }
 
 impl Game {
-    pub fn new(level: Level, paddle_pos: Option<f32>, lives: Lives) -> Self {
-        let lives = match lives {
-            Lives::Default => Some(2),
-            Lives::Some(l) => Some(l),
-            Lives::Infinite => None
-        };
-
-        Self {
-            level,
-            paddle: Paddle::new(paddle_pos),
-            lives,
-            balls:    Vec::with_capacity(100),
-            powerups: Vec::with_capacity(20),
-            bullets:  Vec::with_capacity(20),
+    pub fn new(level_pack: LevelPack) -> Game {
+        Game {
+            world: World::new(level_pack.levels().get(0).unwrap().clone(), None, None, Lives::Default, None),
+            current_level: 0,
+            well_done_timer: None,
+            ball_stuck_timer: None,
+            pause_menu: PauseMenu::new(),
+            level_pack,
         }
     }
+}
 
-    pub fn paddle_pos(&self) -> f32 {
-        self.paddle.x()
-    }
+impl Scene for Game {
+    fn update(&mut self, mouse_pos: Vec2) -> Option<SceneChange> {
+        self.pause_menu.update(mouse_pos);
 
-    pub fn update(&mut self) {
+        if is_key_pressed(KEY_PAUSE) {
+            *self.pause_menu.paused_mut() = !self.pause_menu.paused();
+        }
+        if self.pause_menu.button_exit() {
+            return Some(SceneChange::MainMenu);
+        }
+        if self.pause_menu.paused() {
+            return None;
+        }
+
+        let world_update_return = self.world.update();
+
         let delta = macroquad::time::get_frame_time();
+        self.well_done_timer = self.well_done_timer.map(|t| t - delta);
+        self.ball_stuck_timer = self.ball_stuck_timer.map(|t| t - delta);
 
-        // Balls
-        let carried = self.paddle.update(delta, &mut self.bullets);
-        if let Some(carried) = carried {
-            self.balls.push(carried);
+        if world_update_return == WorldUpdateReturn::BallStuck && self.well_done_timer.is_none() {
+            self.ball_stuck_timer = Some(3.0);
+        }
+        if self.ball_stuck_timer.is_some_and(|t| t <= 0.0) {
+            self.ball_stuck_timer = None;
+            self.world.give_free_ball();
         }
 
-        let mut new_carry = None;
-        let mut remove_balls = Vec::new();
-        for (i, ball) in self.balls.iter_mut().enumerate() {
-            let hit_state = ball.update(delta, &self.paddle, &mut self.level, self.paddle.balls_safe());
+        if self.world.level_complete() && self.well_done_timer.is_none() {
+            self.well_done_timer = Some(3.0);
+        }
+        if self.well_done_timer.is_some_and(|t| t <= 0.0) {
+            // Load the next level, or return to the menu if there are none left
+            self.current_level += 1;
 
-            if hit_state == BallHitState::Floor {
-                remove_balls.push(i);
-            }
-            if hit_state == BallHitState::Paddle && new_carry.is_none() {
-                new_carry = Some(i);
-            }
+            let next_level = match self.level_pack.levels().get(self.current_level) {
+                Some(l) => l.clone(),
+                None => return Some(SceneChange::MainMenu),
+            };
+            self.world = World::new(next_level, Some(self.world.score()), Some(self.world.paddle_pos()), self.world.lives(), Some(self.world.carries()));
+            self.well_done_timer = None;
         }
 
-        if let Some(new_carry) = new_carry {
-            if self.paddle.can_carry() {
-                self.paddle.carry(self.balls.remove(new_carry));
-            }
-        }
-
-        // All balls are gone, the game is lost! Lose a life and either dispense another ball or game-over
-        if self.balls.is_empty() && !self.paddle.carrying() {
-            if self.lives.is_some_and(|l| l == 0) {
-                // Game over!
-            } else {
-                self.lives = self.lives.map(|l| l - 1);
-                self.paddle.carry_new();
-            }
-        }
-
-        // Powerups
-        while let Some(p) = self.level.powerup_buffer_next() {
-            self.powerups.push(Powerup::new(p));
-        }
-
-        let mut remove_powerups = Vec::new();
-        for (i, powerup) in self.powerups.iter_mut().enumerate() {
-            let hit_state = powerup.update(delta, &self.paddle);
-
-            if hit_state == PowerupHitState::Paddle {
-                match powerup.kind() {
-                    PowerupKind::PaddleCarry => self.paddle.powerup_carry(),
-                    PowerupKind::PaddleGrow  => self.paddle.powerup_grow(),
-                    PowerupKind::PaddleGun   => self.paddle.powerup_gun(),
-                    PowerupKind::BallsSafe   => self.paddle.powerup_balls_safe(),
-                    
-                    PowerupKind::Zap => println!("zap!"), // TODO: ZAP!
-                    PowerupKind::BallsTrail => println!("todo.."),
-                    PowerupKind::BallsFive => println!("todo.."),
-                };
-            }
-
-            if hit_state != PowerupHitState::None {
-                remove_powerups.push(i);
-            }
-        }
-
-        // Bullets
-        let mut remove_bullets = Vec::new();
-        for (i, b) in self.bullets.iter_mut().enumerate() {
-            if b.update(delta, &mut self.level) {
-                remove_bullets.push(i);
-            }
-        }
-
-        for i in remove_balls.iter().rev() {
-            self.balls.remove(*i);
-        }
-        for i in remove_powerups.iter().rev() {
-            self.powerups.remove(*i);
-        }
-        for i in remove_bullets.iter().rev() {
-            self.bullets.remove(*i);
-        }
+        None
     }
+    
+    fn draw(&self, texture: &Texture2D) {
+        self.world.draw(texture);
 
-    pub fn draw(&self, texture: &Texture2D) {
-        clear_background(BG_COL);
-
-        // Actual stuff
-        for p in &self.powerups {
-            p.draw(texture);
-        }
-        self.level.draw(texture);
-        for b in &self.balls {
-            b.draw(texture);
-        }
-        for b in &self.bullets {
-            b.draw(texture);
-        }
-        self.paddle.draw(texture);
-
-        // HUD
-        let mut x = 1.0;
-        for _ in 0..self.lives.unwrap_or(0) {
-            draw_texture_ex(texture, x, Level::view_size().y - BALL_SIZE - 1.0, WHITE, DrawTextureParams {
-                source: Some(BALL_TEXTURE),
-                ..Default::default()
-            });
-            x += BALL_SIZE + 1.0;
-        }
-        for _ in 0..self.paddle.carries() {
-            draw_texture_ex(texture, x, Level::view_size().y - BALL_SIZE - 1.0, WHITE, DrawTextureParams {
-                source: Some(CARRY_ICON_TEXTURE),
-                ..Default::default()
-            });
-            x += BALL_SIZE + 1.0;
+        if self.well_done_timer.is_some_and(|t| t % 1.0 >= 0.5 || t >= 3.0) {
+            draw_rectangle(51.0, 83.0, 89.0, 20.0, BG_COL);
+            draw_rectangle_lines(51.0, 83.0, 89.0, 20.0, 2.0, GRID_COL);
+            render_text(&String::from("LEVEL COMPLETE"), vec2(54.0, 86.0), WHITE, TextAlign::Left, texture);
+            render_text(&String::from("  WELL DONE!  "), vec2(54.0, 94.0), WHITE, TextAlign::Left, texture);
+        } else
+        if self.ball_stuck_timer.is_some() && self.well_done_timer.is_none() {
+            draw_rectangle(27.0, 79.0, 143.0, 28.0, BG_COL);
+            draw_rectangle_lines(27.0, 79.0, 143.0, 28.0, 2.0, GRID_COL);
+            render_text(&String::from(" IT APPEARS YOUR BALL "),  vec2(33.0, 82.0), WHITE, TextAlign::Left, texture);
+            render_text(&String::from("   HAS BECOME STUCK!   "), vec2(30.0, 90.0), WHITE, TextAlign::Left, texture);
+            render_text(&String::from("GIVING YOU A NEW ONE :3"), vec2(30.0, 98.0), WHITE, TextAlign::Left, texture);
         }
 
         // Text
-        render_text(&String::from("SCORE: 123457"), vec2(0.0, 0.0), WHITE, TextAlign::Left, &texture);
-        render_text(self.level.name(), vec2(Level::view_size().x, 0.0), WHITE, TextAlign::Right, &texture);
+        render_text(self.level_pack.author(), vec2(Level::view_size().x, 7.0), Color::from_rgba(255, 255, 255, 128), TextAlign::Right, &texture);
 
-        render_text(&format!("JUMBLEDFOX :3").to_uppercase(), vec2(0.0, 50.0), WHITE, TextAlign::Left, &texture);
-
-        // "Testing" lol
-        // render_text(&format!("O:3").to_uppercase(), vec2(100.0, 200.0), WHITE, TextAlign::Left, &texture);
-        // println!("{:?}", self.paddle.center_dist(100.0));
+        self.pause_menu.draw(texture);
     }
 }

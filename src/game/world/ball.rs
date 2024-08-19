@@ -1,6 +1,6 @@
 use macroquad::{color::WHITE, math::{vec2, BVec2, Rect, Vec2}, texture::{draw_texture_ex, DrawTextureParams, Texture2D}};
 
-use super::{level::{Level, Tile}, paddle::Paddle};
+use super::{level::{Level, Tile, LEVEL_HEIGHT, LEVEL_HEIGHT_PADDING_TOP, LEVEL_WIDTH, TILE_GAP, TILE_HEIGHT, TILE_WIDTH}, paddle::Paddle};
 
 pub const BALL_SIZE: f32 = 4.0;
 pub const BALL_SPEED: f32 = 70.0;
@@ -17,13 +17,14 @@ pub enum BallHitState {
     None,
     Paddle,
     Floor,
+    Tiles(Vec<usize>),
 }
 
 impl Ball {
-    pub fn new(pos: Vec2, angle: f32) -> Self {
+    pub fn new(pos: Vec2, angle: f32, speed: f32) -> Self {
         Self {
             pos,
-            vel: Vec2::from_angle(angle),
+            vel: Vec2::from_angle(angle) * speed,
         }
     }
 
@@ -40,7 +41,7 @@ impl Ball {
         self.vel = vel;
     }
 
-    pub fn update(&mut self, delta: f32, paddle: &Paddle, level: &mut Level, safe: bool) -> BallHitState {
+    pub fn update(&mut self, delta: f32, paddle: &Paddle, level: &Level, safe: bool) -> BallHitState {
         let prev_pos = self.pos;
         let rect = Rect::new(0.0, 0.0, BALL_SIZE, BALL_SIZE);
         let mut bounce = BVec2::new(false, false);
@@ -49,9 +50,24 @@ impl Ball {
 
         // Naive approach - checking EVERY TILE
         // TODO: Ideal approch - check the 3x3 area of tiles
-        let mut tiles_to_break = Vec::new();
-        for (i, t) in level.tiles_mut().iter_mut().enumerate() {
-            if *t == Tile::Air {
+
+        let mut tiles_to_check = Vec::with_capacity(9);
+        let ball_tile_pos = (self.pos - vec2(0.0, LEVEL_HEIGHT_PADDING_TOP as f32 * TILE_HEIGHT)) / (vec2(TILE_WIDTH, TILE_HEIGHT) + TILE_GAP);
+        
+        for x in -1..=1 {
+            for y in -1..=1 {
+                let tile_pos = ball_tile_pos + vec2(x as f32, y as f32);
+                let tile_index = match tile_pos.x < 0.0 || tile_pos.x >= LEVEL_WIDTH as f32 || tile_pos.y < 0.0 || tile_pos.x >= LEVEL_HEIGHT as f32 {
+                    false => tile_pos.y.floor() as usize * LEVEL_WIDTH + tile_pos.x.floor() as usize,
+                    true => continue,
+                };
+                tiles_to_check.push(tile_index);
+            }
+        }
+
+        let mut hit_tiles = Vec::new();
+        for i in tiles_to_check {
+            if !level.tiles().get(i).is_some_and(|t| *t != Tile::Air) {
                 continue;
             }
 
@@ -66,14 +82,9 @@ impl Ball {
                 bounce.y = true;
                 break_tile = true;
             }
-
             if break_tile {
-                tiles_to_break.push(i);
+                hit_tiles.push(i);
             }
-        }
-
-        for i in tiles_to_break {
-            level.break_tile(i);
         }
 
         // TODO: Paddle physics
@@ -104,6 +115,7 @@ impl Ball {
             bounce.x = true;
         }
         if self.pos.y <= 0.0 || (safe && self.pos.y >= Level::view_size().y - BALL_SIZE) {
+            self.pos.y = self.pos.y.min(Level::view_size().y - BALL_SIZE);
             bounce.y = true;
         }
 
@@ -120,16 +132,12 @@ impl Ball {
             self.vel.y *= -1.0;
         }
 
-        if self.pos.y >= Level::view_size().y {
-            BallHitState::Floor
-        } else
-        if hit_paddle {
-            BallHitState::Paddle
+        match (!hit_tiles.is_empty(), self.pos.y >= Level::view_size().y, hit_paddle) {
+            (true, _, _) => BallHitState::Tiles(hit_tiles),
+            (_, true, _) => BallHitState::Floor,
+            (_, _, true) => BallHitState::Paddle,
+            _ => BallHitState::None,
         }
-        else {
-            BallHitState::None
-        }
-
     }
 
     pub fn draw(&self, texture: &Texture2D) {

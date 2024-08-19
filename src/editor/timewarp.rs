@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::game::level::{Level, TileArray};
+use crate::game::world::level::{Level, TileArray};
 
 pub struct Timewarp {
     previous_state: TileArray,

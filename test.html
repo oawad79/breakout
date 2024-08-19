@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>TITLE</title>
+    <style>
+        html,
+        body {
+            background: grey;
+        }
+        canvas {
+            margin: 0px;
+            padding: 0px;
+            width: 500px;
+            height: 600px;
+            overflow: hidden;
+            position: absolute;
+            background: black;
+            z-index: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="glcanvas" tabindex='1'></canvas>
+    <script src="mq_js_bundle.js"></script>
+    <!-- Minified and statically hosted version of https://github.com/not-fl3/sapp-jsutils/blob/master/js/sapp_jsutils.js -->
+    <!-- sapp_jsutils is miniquad plugin for more convinient js interop -->
+    <!-- <script src="https://not-fl3.github.io/miniquad-samples/sapp_jsutils.js"></script> -->
+
+    <!-- JS code we want to use in our app -->
+    <!-- <script src="demo.js"></script> -->
+
+    <script>load("target/wasm32-unknown-unknown/release/breakout.wasm");</script></body>
+
+</html>

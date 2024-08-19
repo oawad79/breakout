@@ -25,13 +25,12 @@ impl Powerup {
     pub fn new(tile_index: usize) -> Self {
         Self {
             pos: Level::tile_pos(tile_index) - 1.0,
-            kind: match gen_range(0, 7) {
+            kind: match gen_range(0, 6) {
                 0 => PowerupKind::PaddleCarry,
                 1 => PowerupKind::PaddleGun,
                 2 => PowerupKind::PaddleGrow,
-                3 => PowerupKind::Zap,
-                4 => PowerupKind::BallsFive,
-                5 => PowerupKind::BallsTrail,
+                3 => PowerupKind::BallsFive,
+                4 => PowerupKind::BallsTrail,
                 _ => PowerupKind::BallsSafe,
             },
             fall_speed: gen_range(25.0, 40.0),

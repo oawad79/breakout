@@ -1,8 +1,8 @@
-use crate::game::level::{Level, LEVEL_NAME_LEN};
+use std::{fs, io::Write};
+
+use crate::game::{level_pack::{LevelPack, MAX_LEVELS}, world::level::{Level, LEVEL_NAME_LEN}};
 
 use super::timewarp::Timewarp;
-
-const MAX_LEVELS: usize = 99;
 
 struct EditorLevel {
     level: Level,
@@ -28,14 +28,20 @@ impl EditorLevel {
     }
 }
 
-pub struct LevelPack {
+impl From<Level> for EditorLevel {
+    fn from(value: Level) -> Self {
+        Self { timewarp: Timewarp::new(&value), level: value }
+    }
+}
+
+pub struct EditorLevelPack {
     levels: Vec<EditorLevel>,
     current: usize,
     name: String,
     author: String,
 }
 
-impl LevelPack {
+impl EditorLevelPack {
     pub fn new() -> Self {
         Self {
             levels: vec![EditorLevel::new()],
@@ -149,9 +155,9 @@ impl LevelPack {
     pub fn save(&self) {
         let bytes = self.encode_to_file();
         if cfg!(target_family = "wasm") {
-            save_wasm(bytes);
+            save_wasm(bytes, self.name());
         } else {
-            save_desktop(bytes);
+            save_desktop(bytes, self.name());
         }
     }
 
@@ -173,26 +179,51 @@ impl LevelPack {
 
         // After that it has the contents of each level
         for level in self.levels.iter().map(|el| &el.level) {
+            // First we add the name...
             push_string_bytes(&mut data, level.name());
-
-            // Push each set of two tiles as a single byte
+            // And then the tiles!
+            // Each set of two tiles are encoded as a single byte.
             // Since there are only 15 tiles two tiles are guaranteed to fit in a byte.
             for t in level.tiles().chunks_exact(2) {
-                let (a, b) = (t[0] as u8, t[1]as u8);
-                data.push(a << 4 + b);
+                let (a, b) = (t[0] as u8, t[1] as u8);
+                data.push((a << 4) + b);
             }
         }
-
-        println!("{:?}", data);
 
         data
     }
 }
 
-fn save_desktop(bytes: Vec<u8>) {
+impl From<LevelPack> for EditorLevelPack {
+    fn from(value: LevelPack) -> Self {
+        let mut levels: Vec<EditorLevel> = value.levels()
+            .clone()
+            .iter()
+            .map(|l| l.clone().into())
+            .collect();
 
+        if levels.is_empty() {
+            levels.push(EditorLevel::new());
+        }
+
+        EditorLevelPack {
+            levels,
+            current: 0,
+            name: value.name().clone(),
+            author: value.author().clone()
+        }
+    }
 }
 
-fn save_wasm(bytes: Vec<u8>) {
+fn save_desktop(bytes: Vec<u8>, name: &String) {
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open(format!("{}.brk", name))
+        .unwrap();
+    file.write_all(&bytes).unwrap();
+}
+
+fn save_wasm(_bytes: Vec<u8>, _name: &String) {
 
 }

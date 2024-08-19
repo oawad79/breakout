@@ -1,4 +1,4 @@
-use macroquad::{color::WHITE, math::{vec2, Rect, Vec2}, rand::gen_range, texture::{draw_texture_ex, DrawTextureParams, Texture2D}};
+use macroquad::{color::WHITE, math::{vec2, Rect, Vec2}, texture::{draw_texture_ex, DrawTextureParams, Texture2D}};
 
 pub const LEVEL_WIDTH: usize = 16;
 pub const LEVEL_HEIGHT: usize = 22;
@@ -23,6 +23,31 @@ pub enum Tile {
     Air,
 }
 
+impl TryFrom<u8> for Tile {
+    type Error = ();
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0  => Ok(Tile::White),
+            1  => Ok(Tile::Red),
+            2  => Ok(Tile::Orange),
+            3  => Ok(Tile::Yellow),
+            4  => Ok(Tile::Green),
+            5  => Ok(Tile::Cyan),
+            6  => Ok(Tile::Blue),
+            7  => Ok(Tile::Purple),
+            8  => Ok(Tile::Pink),
+            9  => Ok(Tile::Brown),
+            10 => Ok(Tile::Black),
+            11 => Ok(Tile::Stone),
+            12 => Ok(Tile::StoneCracked),
+            13 => Ok(Tile::Metal),
+            14 => Ok(Tile::Gold),
+            15 => Ok(Tile::Air),
+            _ => Err(())
+        }
+    }
+}
+
 impl Tile {
     pub fn texture_rect(&self) -> Rect {
         let along = *self as usize;
@@ -37,27 +62,22 @@ impl Tile {
     pub fn breakable(&self) -> bool {
         !matches!(*self, Self::Air | Self::Metal | Self::Gold)
     }
-    // Returns whether it dropped a powerup
+
     pub fn hit(&mut self) -> bool {
         if !self.breakable() {
             return false;
         }
-
-        let spawn_powerup = gen_range(0, 15) == 0 && !matches!(*self, Tile::Stone | Tile::StoneCracked);
-
         *self = match *self {
             Self::Stone => Self::StoneCracked,
             _ => Self::Air,
         };
-
-        spawn_powerup
+        *self == Tile::Air
     }
 }
 
 #[derive(Clone)]
 pub struct Level {
     tiles: TileArray,
-    powerup_buffer: Vec<usize>,
     name: String,
 }
 
@@ -65,7 +85,6 @@ impl Level {
     pub fn new() -> Self {
         Self {
             tiles: [Tile::Air; LEVEL_WIDTH*LEVEL_HEIGHT],
-            powerup_buffer: Vec::with_capacity(10),
             name: String::new(),
         }
     }
@@ -83,14 +102,8 @@ impl Level {
         &mut self.name
     }
 
-    pub fn break_tile(&mut self, index: usize) {
-        self.tiles.get_mut(index).map(|t| if t.hit() {
-            self.powerup_buffer.push(index)
-        });
-    }
-    
-    pub fn powerup_buffer_next(&mut self) -> Option<usize> {
-        self.powerup_buffer.pop()
+    pub fn break_tile(&mut self, index: usize) -> bool {
+        self.tiles.get_mut(index).is_some_and(|t| t.hit())
     }
 
     pub fn tile_pos(index: usize) -> Vec2 {

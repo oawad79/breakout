@@ -11,25 +11,34 @@ pub struct Bullet {
     pos: Vec2,
 }
 
+#[derive(PartialEq, Eq)]
+pub enum BulletHitState {
+    Tile(usize),
+    Roof,
+    None,
+}
+
 impl Bullet {
     pub fn new(pos: Vec2) -> Self {
         Self { pos }
     }
-    pub fn update(&mut self, delta: f32, level: &mut Level) -> bool {
+    pub fn update(&mut self, delta: f32, level: &Level) -> BulletHitState {
         self.pos.y -= delta * BULLET_SPEED;
 
         let rect = Rect::new(self.pos.x, self.pos.y + BULLET_HEIGHT, 2.0, 1.0);
         let mut hit_tile = None;
-        for (i, t) in level.tiles_mut().iter_mut().enumerate() {
+        for (i, t) in level.tiles().iter().enumerate() {
             if Level::tile_rect(i).overlaps(&rect) && t.breakable() {
                 hit_tile = Some(i);
                 break;
             }
         }
-        if let Some(i) = hit_tile {
-            level.break_tile(i);
+        
+        match (hit_tile, self.pos.y < -10.0) {
+            (Some(i), _) => BulletHitState::Tile(i),
+            (_, true)    => BulletHitState::Roof,
+            _ => BulletHitState::None,
         }
-        hit_tile.is_some()
     }
 
     pub fn draw(&self, texture: &Texture2D) {

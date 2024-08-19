@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
-use macroquad::{color::{Color, WHITE}, color_u8, input::{clear_input_queue, is_key_pressed, is_mouse_button_pressed, KeyCode, MouseButton}, math::{vec2, Rect, Vec2}, shapes::{draw_line, draw_rectangle, draw_rectangle_lines}, texture::{draw_texture_ex, DrawTextureParams, Texture2D}};
+use macroquad::{color::WHITE, input::{clear_input_queue, is_key_pressed, is_mouse_button_pressed, KeyCode, MouseButton}, math::{vec2, Rect, Vec2}, shapes::{draw_line, draw_rectangle, draw_rectangle_lines}, texture::{draw_texture_ex, DrawTextureParams, Texture2D}};
 
-use crate::{game::{level::{Level, Tile, TILE_HEIGHT, TILE_WIDTH}, BG_COL}, gui::{Button, ButtonDetail, Gui, Id, TextField}, text_renderer::{render_text, TextAlign}};
+use crate::{game::world::{level::{Level, Tile, TILE_HEIGHT, TILE_WIDTH}, BG_COL}, gui::{Button, ButtonDetail, Gui, Id, TextField, BUTTON_COL_HOVER, BUTTON_COL_IDLE, BUTTON_DETAIL_GREY, BUTTON_DETAIL_HELP, DARKEN_BACKGROUND, GRID_COL}, text_renderer::{render_text, TextAlign}};
 
-use super::level_pack::LevelPack;
+use super::editor_level_pack::EditorLevelPack;
 
 const TILES_BUTTONS: &[Tile] = &[
     Tile::White,
@@ -24,12 +24,6 @@ const TILES_BUTTONS: &[Tile] = &[
     Tile::Gold,
     Tile::Air
 ];
-
-pub const GRID_COL: Color = color_u8!(18, 78, 137, 255);
-const BUTTON_COL_IDLE: Color = color_u8!(0, 0, 0, 0);
-const BUTTON_COL_HOVER: Color = color_u8!(23, 56, 96, 255);
-const BUTTON_DETAIL_GREY: Color = color_u8!(139, 155, 180, 255);
-const BUTTON_DETAIL_HELP: Color = color_u8!(254, 231, 97, 255);
 
 const ARROW_TEXTURE: Rect = Rect { x: 157.0, y: 8.0, w: 7.0, h: 9.0 };
 const UNDO_TEXTURE: Rect = Rect { x: 165.0, y: 8.0, w: 7.0, h: 6.0 };
@@ -159,7 +153,7 @@ impl EditorGui {
         }
     }
 
-    pub fn update(&mut self, mouse_pos: Vec2, level_pack: &mut LevelPack, draw_type: &mut Tile) {
+    pub fn update(&mut self, mouse_pos: Vec2, level_pack: &mut EditorLevelPack, draw_type: &mut Tile) {
         self.confirmation = Confirmation::None;
 
         let update_only: Option<&[Id]> = match self.confirmation_popup {
@@ -183,6 +177,7 @@ impl EditorGui {
             self.gui.buttons_mut().insert(301, Button::new(Rect::new(100.0, 95.0, 21.0, 8.0), ButtonDetail::Text(String::from("NO")), vec2(5.0, 1.0)));
 
             if self.confirmation_popup == Confirmation::Save {
+                clear_input_queue();
                 self.gui.buttons_mut().insert(302, Button::new(Rect::new(70.0, 75.0, 97.0, 7.0), ButtonDetail::None, vec2(0.0, 0.0))); // Pack name
                 self.gui.buttons_mut().insert(303, Button::new(Rect::new(70.0, 85.0, 97.0, 7.0), ButtonDetail::None, vec2(0.0, 0.0))); // Pack author
                 self.text_fields.insert(302, TextField::new(vec2(70.0, 75.0)));
@@ -196,8 +191,8 @@ impl EditorGui {
             if yes {
                 self.confirmation = self.confirmation_popup;
             }
-            // Close the popup
-            if yes || no {
+            // Close the popup (Don't close it if it's 'Exit' and yes to avoid the single frame of flicker!!)
+            if (yes && self.confirmation != Confirmation::Exit) || no {
                 self.gui.buttons_mut().remove(&300);
                 self.gui.buttons_mut().remove(&301);
                 self.gui.buttons_mut().remove(&302);
@@ -250,7 +245,7 @@ impl EditorGui {
         }
     }
 
-    pub fn draw(&self, texture: &Texture2D, level_pack: &LevelPack, draw_type: &Tile) {
+    pub fn draw(&self, texture: &Texture2D, level_pack: &EditorLevelPack, draw_type: &Tile) {
         let level = level_pack.level();
         let timewarp = level_pack.timewarp();
 
@@ -325,7 +320,7 @@ impl EditorGui {
 
 
         if self.confirmation_popup != Confirmation::None {
-            draw_rectangle(0.0, 0.0, view_size.x, view_size.y, Color::from_rgba(0, 0, 0, 128));
+            draw_rectangle(0.0, 0.0, view_size.x, view_size.y, DARKEN_BACKGROUND);
 
             let rect = match self.confirmation_popup {
                 Confirmation::Save => Rect::new(26.0, 63.0, 143.0, 43.0),

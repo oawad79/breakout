@@ -1,11 +1,11 @@
-use editor_gui::{EditorGui, GRID_COL};
-use level_pack::LevelPack;
-use macroquad::{camera::Camera2D, color::WHITE, input::{clear_input_queue, is_key_pressed, is_mouse_button_pressed, is_mouse_button_released, mouse_position, KeyCode, MouseButton}, math::{vec2, Rect}, shapes::draw_line, texture::Texture2D, window::clear_background};
+use editor_gui::EditorGui;
+use editor_level_pack::EditorLevelPack;
+use macroquad::{color::WHITE, input::{clear_input_queue, is_key_pressed, is_mouse_button_pressed, is_mouse_button_released, MouseButton}, math::{vec2, Rect, Vec2}, shapes::draw_line, texture::Texture2D, window::clear_background};
 
-use crate::{game::{level::{Level, Tile, LEVEL_HEIGHT, LEVEL_HEIGHT_PADDING_TOP, LEVEL_WIDTH, TILE_GAP, TILE_HEIGHT, TILE_WIDTH}, Game, Lives, BG_COL}, text_renderer::{render_text, TextAlign}};
+use crate::{game::{level_pack::LevelPack, world::{level::{Level, Tile, LEVEL_HEIGHT, LEVEL_HEIGHT_PADDING_TOP, LEVEL_WIDTH, TILE_GAP, TILE_HEIGHT, TILE_WIDTH}, Lives, World, BG_COL}, KEY_PAUSE}, gui::GRID_COL, text_renderer::{render_text, TextAlign}, Scene, SceneChange};
 
 pub mod editor_gui;
-pub mod level_pack;
+pub mod editor_level_pack;
 pub mod timewarp;
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
@@ -19,56 +19,71 @@ pub struct Editor {
     draw_type: Tile,
     click_action: ClickAction,
 
-    level_pack: LevelPack,
+    level_pack: EditorLevelPack,
 
-    game: Option<Game>,
+    world: Option<World>,
     paddle_pos: Option<f32>,
 }
 
-impl Editor {
-    pub fn new() -> Self {
-        Editor {
+impl Default for Editor {
+    fn default() -> Self {
+        Self {
             gui: EditorGui::new(),
 
             draw_type: Tile::Red,
             click_action: ClickAction::None,
             
-            level_pack: LevelPack::new(),
+            level_pack: EditorLevelPack::new(),
 
-            game: None,
+            world: None,
             paddle_pos: None,
         }
     }
+}
 
-    pub fn update(&mut self, camera: &Camera2D) {
-        if is_key_pressed(KeyCode::Escape) {
-            if self.game.is_some() {
-                self.paddle_pos = self.game.as_ref().map(|g| g.paddle_pos());
-                self.game = None;
+impl Editor {
+    pub fn from_level_pack(level_pack: LevelPack) -> Self {
+        Editor {
+            level_pack: level_pack.into(),
+            ..Default::default()
+        }
+    }
+}
+
+impl Scene for Editor {
+    fn update(&mut self, mouse_pos: Vec2) -> Option<SceneChange> {
+        if is_key_pressed(KEY_PAUSE) {
+            if self.world.is_some() {
+                self.paddle_pos = self.world.as_ref().map(|g| g.paddle_pos());
+                self.world = None;
             } else {
                 self.gui.stop_editing_name();
-                self.game = Some(Game::new(self.level_pack.level().clone(), self.paddle_pos, Lives::Infinite));
+                self.world = Some(World::new(self.level_pack.level().clone(), None, self.paddle_pos, Lives::Infinite, None));
             }
             clear_input_queue();
         }
-        if let Some(game) = &mut self.game {
-            game.update();
-            return;
+
+        if let Some(world) = &mut self.world {
+            world.update();
+            return None;
         }
 
         // Gui
-        let mouse_pos = camera.screen_to_world(vec2(mouse_position().0, mouse_position().1));
         self.gui.update(mouse_pos, &mut self.level_pack, &mut self.draw_type);
 
-        // Save
-        if self.gui.button_save() {
-            self.level_pack.save();
-        }
         // Clear
         if self.gui.button_clear() && *self.level_pack.level().tiles() != [Tile::Air; LEVEL_WIDTH*LEVEL_HEIGHT] {
             self.level_pack.timewarp_save_previous_state();
             self.level_pack.timewarp_push_current_state();
             *self.level_pack.level_mut() = Level::new();
+        }
+
+        // Exit / Save
+        if self.gui.button_exit() {
+            return Some(SceneChange::MainMenu);
+        }
+        if self.gui.button_save() {
+            self.level_pack.save();
         }
         
         // Undo / Redo
@@ -139,11 +154,13 @@ impl Editor {
                 self.level_pack.timewarp_push_current_state();
             }
         }
+
+        None
     }
 
-    pub fn draw(&self, texture: &Texture2D) {
-        if let Some(game) = &self.game {
-            game.draw(texture);
+    fn draw(&self, texture: &Texture2D) {
+        if let Some(world) = &self.world {
+            world.draw(texture);
             render_text(&String::from("PRESS ESC TO RETURN TO EDITOR."), vec2(0.0, 7.0), WHITE, TextAlign::Left, texture);
             return;
         }

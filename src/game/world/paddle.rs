@@ -34,15 +34,15 @@ pub struct Paddle {
 }
 
 impl Paddle {
-    pub fn new(x: Option<f32>) -> Self {
+    pub fn new(x: Option<f32>, carries: Option<usize>) -> Self {
         Self {
             x: x.unwrap_or((Level::view_size().x - WIDTH_DEFAULT) / 2.0),
             vel: 0.0,
             width: WIDTH_DEFAULT,
             target_width: WIDTH_DEFAULT,
 
-            carries: 0,
-            carry: Some(Ball::new(vec2(0.0, 0.0), f32::to_radians(90.0))),
+            carries: carries.unwrap_or(0),
+            carry: Some(Ball::new(vec2(0.0, 0.0), f32::to_radians(90.0), 1.0)),
             carry_x: (WIDTH_DEFAULT - BALL_SIZE) / 2.0,
 
             long:       None,
@@ -67,7 +67,7 @@ impl Paddle {
         self.x
     }
     pub fn y() -> f32 {
-        Level::view_size().y - 10.0
+        Level::view_size().y - 12.0
     }
     pub fn carries(&self) -> usize {
         self.carries
@@ -85,7 +85,7 @@ impl Paddle {
         self.carry = Some(ball);
     }
     pub fn carry_new(&mut self) {
-        self.carry = Some(Ball::new(vec2(0.0, 0.0), 0.0));
+        self.carry = Some(Ball::new(vec2(0.0, 0.0), 0.0, 1.0));
         self.carry_x = (self.width - BALL_SIZE) / 2.0;
     }
 
@@ -102,6 +102,10 @@ impl Paddle {
         if self.carries <3 { // awwww :3
             self.carries += 1
         }
+    }
+
+    pub fn has_gun_powerup(&self) -> bool {
+        self.gun.is_some()
     }
 
     pub fn balls_safe(&self) -> bool {
@@ -140,8 +144,8 @@ impl Paddle {
         self.shot_timer -= delta;
         if is_key_pressed(KeyCode::Q) && self.gun.is_some() && self.shot_timer <= 0.0 {
             self.shot_timer = 0.2;
-            bullets.push(Bullet::new(vec2(self.x, Paddle::y())));
-            bullets.push(Bullet::new(vec2(self.x + self.width, Paddle::y())));
+            bullets.push(Bullet::new(vec2(self.x + 2.0, Paddle::y())));
+            bullets.push(Bullet::new(vec2(self.x - 2.0 + self.width, Paddle::y())));
         }
 
         // Growing / shrinking

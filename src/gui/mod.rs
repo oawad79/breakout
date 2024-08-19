@@ -1,8 +1,15 @@
 use std::collections::HashMap;
 
-use macroquad::{color::{Color, WHITE}, input::{get_char_pressed, is_mouse_button_pressed, is_mouse_button_released, MouseButton}, math::{vec2, Rect, Vec2}, shapes::{draw_rectangle, draw_rectangle_lines}, texture::{draw_texture_ex, DrawTextureParams, Texture2D}};
+use macroquad::{color::{Color, WHITE}, color_u8, input::{get_char_pressed, is_mouse_button_pressed, is_mouse_button_released, MouseButton}, math::{vec2, Rect, Vec2}, shapes::{draw_rectangle, draw_rectangle_lines}, texture::{draw_texture_ex, DrawTextureParams, Texture2D}};
 
-use crate::{game::level::LEVEL_NAME_LEN, text_renderer::{char_valid, render_text, TextAlign}};
+use crate::{game::world::level::LEVEL_NAME_LEN, text_renderer::{char_valid, render_text, TextAlign}};
+
+pub const GRID_COL: Color = color_u8!(18, 78, 137, 255);
+pub const BUTTON_COL_IDLE: Color = color_u8!(25, 31, 58, 255);
+pub const BUTTON_COL_HOVER: Color = color_u8!(23, 56, 96, 255);
+pub const BUTTON_DETAIL_GREY: Color = color_u8!(139, 155, 180, 255);
+pub const BUTTON_DETAIL_HELP: Color = color_u8!(254, 231, 97, 255);
+pub const DARKEN_BACKGROUND: Color = color_u8!(0, 0, 0, 128);
 
 #[derive(PartialEq, Eq)]
 pub enum ButtonState {
