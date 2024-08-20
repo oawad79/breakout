@@ -154,11 +154,11 @@ impl EditorLevelPack {
 
     pub fn save(&self) {
         let bytes = self.encode_to_file();
-        if cfg!(target_family = "wasm") {
-            save_wasm(bytes, self.name());
-        } else {
-            save_desktop(bytes, self.name());
-        }
+
+        #[cfg(target_arch = "wasm32")]
+        save_wasm(bytes, self.name());
+        #[cfg(not(target_arch = "wasm32"))]
+        save_desktop(bytes, self.name());
     }
 
     pub fn encode_to_file(&self) -> Vec<u8> {
@@ -224,6 +224,7 @@ fn save_desktop(bytes: Vec<u8>, name: &String) {
     file.write_all(&bytes).unwrap();
 }
 
+#[cfg(target_arch = "wasm32")]
 fn save_wasm(_bytes: Vec<u8>, _name: &String) {
-
+    macroquad::logging::error!("not yet implemented saving on wasm!");
 }

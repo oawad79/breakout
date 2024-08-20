@@ -35,7 +35,7 @@ impl Game {
 }
 
 impl Scene for Game {
-    fn update(&mut self, mouse_pos: Vec2, _: &Option<LevelPack>) -> Option<SceneChange> {
+    fn update(&mut self, mouse_pos: Vec2) -> Option<SceneChange> {
         self.pause_menu.update(mouse_pos);
 
         if is_key_pressed(KEY_PAUSE) {
@@ -80,7 +80,7 @@ impl Scene for Game {
         None
     }
     
-    fn draw(&self, texture: &Texture2D) {
+    fn draw(&self, texture: &Texture2D, _: Option<(&String, &String)>) {
         self.world.draw(texture);
 
         if self.well_done_timer.is_some_and(|t| t % 1.0 >= 0.5 || t >= 3.0) {

@@ -51,7 +51,7 @@ impl Editor {
 }
 
 impl Scene for Editor {
-    fn update(&mut self, mouse_pos: Vec2, _: &Option<LevelPack>) -> Option<SceneChange> {
+    fn update(&mut self, mouse_pos: Vec2) -> Option<SceneChange> {
         if is_key_pressed(KEY_PAUSE) {
             if self.world.is_some() {
                 self.paddle_pos = self.world.as_ref().map(|g| g.paddle_pos());
@@ -158,7 +158,7 @@ impl Scene for Editor {
         None
     }
 
-    fn draw(&self, texture: &Texture2D) {
+    fn draw(&self, texture: &Texture2D, _: Option<(&String, &String)>) {
         if let Some(world) = &self.world {
             world.draw(texture);
             render_text(&String::from("PRESS ESC TO RETURN TO EDITOR."), vec2(0.0, 7.0), WHITE, TextAlign::Left, texture);

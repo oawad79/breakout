@@ -11,7 +11,7 @@ pub mod text_renderer;
 pub mod main_menu;
 
 #[cfg(target_arch = "wasm32")]
-use game::level_pack::try_load_level;
+use game::level_pack::{set_try_flag, try_load_level};
 
 pub enum SceneChange {
     MainMenu,
@@ -19,8 +19,8 @@ pub enum SceneChange {
     Editor { new: bool },
 }
 pub trait Scene {
-    fn update(&mut self, mouse_pos: Vec2, level_pack: &Option<LevelPack>) -> Option<SceneChange>;
-    fn draw(&self, texture: &Texture2D);
+    fn update(&mut self, mouse_pos: Vec2) -> Option<SceneChange>;
+    fn draw(&self, texture: &Texture2D, level_pack_info: Option<(&String, &String)>);
 }
 
 fn window_conf()-> Conf {
@@ -48,9 +48,9 @@ async fn main() {
     let camera = Camera2D::from_display_rect(Rect::new(0.0, view_size.y, view_size.x, -view_size.y));
 
     #[cfg(not(target_arch = "wasm"))]
-    let level_pack = Some(LevelPack::load_from_file(include_bytes!("../SPACE.brk").into()).unwrap());
+    let level_pack: Option<LevelPack> = Some(LevelPack::load_from_file(include_bytes!("../SPACE.brk").into()).unwrap());
     #[cfg(target_arch = "wasm32")]
-    let mut level_pack = None;
+    let mut level_pack: Option<LevelPack> = None;
 
     let mut scene: Box<dyn Scene> = Box::new(MainMenu::new());
 
@@ -63,13 +63,13 @@ async fn main() {
         set_camera(&camera);
         let mouse_pos = camera.screen_to_world(vec2(mouse_position().0, mouse_position().1));
 
-        let change = scene.update(mouse_pos, &level_pack);
-        scene.draw(&texture);
+        let change = scene.update(mouse_pos);
+        scene.draw(&texture, level_pack.as_ref().map(|lp| (lp.name(), lp.author())));
 
         if let Some(change) = change {
             scene = match (change, &level_pack) {
-                (SceneChange::Editor { new: true }, Some(lp)) => Box::new(Editor::from_level_pack(lp.clone())),
-                (SceneChange::Editor { new: false }, _)       => Box::new(Editor::default()),
+                (SceneChange::Editor { new: false }, Some(lp)) => Box::new(Editor::from_level_pack(lp.clone())),
+                (SceneChange::Editor { new: true }, _)         => Box::new(Editor::default()),
                 (SceneChange::Game, Some(lp)) => Box::new(Game::new(lp.clone())),
                 (SceneChange::MainMenu, _) =>Box::new(MainMenu::new()),
                 _ => scene

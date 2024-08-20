@@ -1,7 +1,3 @@
-// use crate::{world::level::{Level, Tile, LEVEL_HEIGHT, LEVEL_NAME_LEN, LEVEL_WIDTH}, text_renderer::char_valid};
-
-use sapp_jsutils::JsObject;
-
 use crate::text_renderer::char_valid;
 
 use super::world::level::{Level, Tile, LEVEL_HEIGHT, LEVEL_NAME_LEN, LEVEL_WIDTH};
@@ -65,8 +61,8 @@ impl LevelPack {
             levels.push(level);
         }
         
-        // If the pack has no levels, it's not valid
-        if levels.is_empty() {
+        // If the pack has no levels, or too many levels, it's not valid!!
+        if levels.is_empty() || levels.len() > MAX_LEVELS {
             return None;
         }
 
@@ -74,20 +70,48 @@ impl LevelPack {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
+pub use wasm_specific::*;
+#[cfg(target_arch = "wasm32")]
+mod wasm_specific {
+    use std::sync::Mutex;
+    use sapp_jsutils::JsObject;
+    use crate::LevelPack;
 
-#[cfg(target_arch = "wasm32")]
-extern "C" {
-    fn js_send_level_bytes() -> JsObject;
-}
-#[cfg(target_arch = "wasm32")]
-pub fn try_load_level() -> Option<LevelPack> {
-    let data = unsafe { js_send_level_bytes() };
-    if data.is_nil() {
-        return None;
-    }
+    static TRY_FLAG: Mutex<bool> = Mutex::new(false);
     
-    let mut buf = vec![];
-    data.to_byte_buffer(&mut buf);
+    // Function JS calls
+    #[no_mangle]
+    pub extern "C" fn set_try_flag() {
+        if let Ok(mut b) = TRY_FLAG.lock() {
+            *b = true;
+        }
+        macroquad::logging::info!("set_try_flag!!");
+    }
+    // Signature of the JS function rust calls
+    #[no_mangle]
+    extern "C" {
+        fn js_send_level_bytes() -> JsObject;
+    }
 
-    LevelPack::load_from_file(buf)
+    pub fn try_load_level() -> Option<LevelPack> {
+        // If the try flag couldn't be acquired (for some reason?) or if it's false, return None
+        // Otherwise set it to false and carry on the function
+        match TRY_FLAG.lock() {
+            Ok(mut b) if *b => { *b = false },
+            _ => return None,
+        };
+
+        macroquad::logging::info!("attempted!!");
+
+        let data = unsafe { js_send_level_bytes() };
+        if data.is_nil() {
+            return None;
+        }
+    
+        let mut buf = vec![];
+        data.to_byte_buffer(&mut buf);
+    
+        LevelPack::load_from_file(buf)
+    }
 }
