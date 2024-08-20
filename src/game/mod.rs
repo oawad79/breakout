@@ -35,7 +35,7 @@ impl Game {
 }
 
 impl Scene for Game {
-    fn update(&mut self, mouse_pos: Vec2) -> Option<SceneChange> {
+    fn update(&mut self, mouse_pos: Vec2, _: &Option<LevelPack>) -> Option<SceneChange> {
         self.pause_menu.update(mouse_pos);
 
         if is_key_pressed(KEY_PAUSE) {

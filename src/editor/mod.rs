@@ -51,7 +51,7 @@ impl Editor {
 }
 
 impl Scene for Editor {
-    fn update(&mut self, mouse_pos: Vec2) -> Option<SceneChange> {
+    fn update(&mut self, mouse_pos: Vec2, _: &Option<LevelPack>) -> Option<SceneChange> {
         if is_key_pressed(KEY_PAUSE) {
             if self.world.is_some() {
                 self.paddle_pos = self.world.as_ref().map(|g| g.paddle_pos());

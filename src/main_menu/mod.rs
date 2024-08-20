@@ -2,10 +2,12 @@ use std::collections::HashMap;
 
 use macroquad::{color::WHITE, math::{vec2, Rect, Vec2}, texture::Texture2D, window::clear_background};
 
-use crate::{game::world::BG_COL, gui::{Button, ButtonDetail, Gui, BUTTON_COL_HOVER, BUTTON_COL_IDLE, GRID_COL}, text_renderer::{render_text, TextAlign}, Scene, SceneChange};
+use crate::{game::{level_pack::LevelPack, world::BG_COL}, gui::{Button, ButtonDetail, Gui, BUTTON_COL_HOVER, BUTTON_COL_IDLE, GRID_COL}, text_renderer::{render_text, TextAlign}, Scene, SceneChange};
 
 pub struct MainMenu {
-    gui: Gui
+    gui: Gui,
+
+    level_pack_name_author: Option<(String, String)>,
 }
 
 impl MainMenu {
@@ -17,13 +19,19 @@ impl MainMenu {
         buttons.insert(3, Button::new(Rect::new(24.0, 130.0, 144.0, 10.0), ButtonDetail::Text(String::from("         INFO         ")), vec2(6.0, 2.0)));
 
         Self {
-            gui: Gui::new(buttons)
+            gui: Gui::new(buttons),
+            level_pack_name_author: None,
         }
     }
 }
 
 impl Scene for MainMenu {
-    fn update(&mut self, mouse_pos: Vec2) -> Option<SceneChange> {
+    fn update(&mut self, mouse_pos: Vec2, level_pack: &Option<LevelPack>) -> Option<SceneChange> {
+        self.level_pack_name_author = match level_pack {
+            Some(lp) => Some((lp.name().clone(), lp.author().clone())),
+            _ => None
+        };
+
         self.gui.update(mouse_pos, None);
 
         for (id, scene_change) in [

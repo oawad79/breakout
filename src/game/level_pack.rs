@@ -15,10 +15,6 @@ pub struct LevelPack {
     levels: Vec<Level>,
 }
 
-extern "C" {
-    fn js_send_level_bytes() -> JsObject;
-}
-
 impl LevelPack {
     pub fn name(&self) -> &String {
         &self.name
@@ -78,6 +74,11 @@ impl LevelPack {
     }
 }
 
+
+#[cfg(target_arch = "wasm32")]
+extern "C" {
+    fn js_send_level_bytes() -> JsObject;
+}
 #[cfg(target_arch = "wasm32")]
 pub fn try_load_level() -> Option<LevelPack> {
     let data = unsafe { js_send_level_bytes() };
