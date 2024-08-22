@@ -25,8 +25,6 @@ pub trait Scene {
 
 fn window_conf()-> Conf {
     let window_size = Level::view_size();
-    macroquad::logging::info!("{}, {}", window_size.x as i32 * 3, window_size.y as i32 * 3);
-
     Conf { 
         window_title: String::from("Breakout"),
         window_width:  window_size.x as i32 * 6,
@@ -38,7 +36,7 @@ fn window_conf()-> Conf {
 
 #[macroquad::main(window_conf())]
 async fn main() {
-    macroquad::logging::info!("hello?");
+    macroquad::logging::info!("started program..!!!");
     macroquad::rand::srand(macroquad::miniquad::date::now() as _);
     
     let view_size = Level::view_size();
@@ -48,7 +46,7 @@ async fn main() {
     let camera = Camera2D::from_display_rect(Rect::new(0.0, view_size.y, view_size.x, -view_size.y));
 
     #[cfg(not(target_arch = "wasm"))]
-    let level_pack: Option<LevelPack> = Some(LevelPack::load_from_file(include_bytes!("../SPACE.brk").into()).unwrap());
+    let level_pack: Option<LevelPack> = Some(LevelPack::load_from_file(include_bytes!("../ALBUMS I LIKE.brk").into()).unwrap());
     #[cfg(target_arch = "wasm32")]
     let mut level_pack: Option<LevelPack> = None;
 

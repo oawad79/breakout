@@ -42,7 +42,7 @@ impl Ball {
     }
 
     pub fn update(&mut self, delta: f32, paddle: &Paddle, level: &Level, safe: bool) -> BallHitState {
-        let prev_pos = self.pos;
+        let mut prev_pos = self.pos;
         let rect = Rect::new(0.0, 0.0, BALL_SIZE, BALL_SIZE);
         let mut bounce = BVec2::new(false, false);
         
@@ -115,7 +115,7 @@ impl Ball {
             bounce.x = true;
         }
         if self.pos.y <= 0.0 || (safe && self.pos.y >= Level::view_size().y - BALL_SIZE) {
-            self.pos.y = self.pos.y.min(Level::view_size().y - BALL_SIZE);
+            prev_pos.y = prev_pos.y.min(Level::view_size().y - BALL_SIZE);
             bounce.y = true;
         }
 

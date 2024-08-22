@@ -41,6 +41,7 @@ pub enum Confirmation {
     LevelDelete,
     Exit,
     Save,
+    Help,
 }
 
 pub struct EditorGui {
@@ -124,9 +125,6 @@ impl EditorGui {
     pub fn button_redo(&self) -> bool {
         self.button_released(105)
     }
-    pub fn button_help(&self) -> bool {
-        self.button_released(106)
-    }
 
     pub fn button_level_add(&self) -> bool {
         self.button_released(200)
@@ -158,23 +156,28 @@ impl EditorGui {
 
         let update_only: Option<&[Id]> = match self.confirmation_popup {
             Confirmation::None => None,
+            Confirmation::Help => Some(&[106]),
             _ => Some(&[300, 301, 302, 303]),
         };
         self.gui.update(mouse_pos, update_only);
 
         // Confirmation popup
         let prev_confirmation_popup = self.confirmation_popup;
-        self.confirmation_popup = match (self.button_released(101), self.button_released(102), self.button_released(205)) {
-            (true, _, _) => Confirmation::Exit,
-            (_, true, _) => Confirmation::Save,
-            (_, _, true) => Confirmation::LevelDelete,
+        self.confirmation_popup = match (self.button_released(101), self.button_released(102), self.button_released(205), self.button_released(106), self.confirmation_popup == Confirmation::Help) {
+            (true, _, _, _, _) => Confirmation::Exit,
+            (_, true, _, _, _) => Confirmation::Save,
+            (_, _, true, _, _) => Confirmation::LevelDelete,
+            (_, _, _, true, false) => Confirmation::Help,
+            (_, _, _, true, true)  => Confirmation::None,
             _ => self.confirmation_popup,
         };
 
         // A new popup!
         if self.confirmation_popup != Confirmation::None && prev_confirmation_popup == Confirmation::None {
-            self.gui.buttons_mut().insert(300, Button::new(Rect::new(70.0, 95.0, 21.0, 8.0), ButtonDetail::Text(String::from("YES")), vec2(2.0, 1.0)));
-            self.gui.buttons_mut().insert(301, Button::new(Rect::new(100.0, 95.0, 21.0, 8.0), ButtonDetail::Text(String::from("NO")), vec2(5.0, 1.0)));
+            if self.confirmation_popup != Confirmation::Help {
+                self.gui.buttons_mut().insert(300, Button::new(Rect::new(70.0, 95.0, 21.0, 8.0), ButtonDetail::Text(String::from("YES")), vec2(2.0, 1.0)));
+                self.gui.buttons_mut().insert(301, Button::new(Rect::new(100.0, 95.0, 21.0, 8.0), ButtonDetail::Text(String::from("NO")), vec2(5.0, 1.0)));
+            }
 
             if self.confirmation_popup == Confirmation::Save {
                 clear_input_queue();
@@ -186,7 +189,7 @@ impl EditorGui {
             }
         }
         // Updating the popup...
-        if self.confirmation_popup != Confirmation::None {
+        if self.confirmation_popup != Confirmation::None && self.confirmation_popup != Confirmation::Help {
             let (yes, no) = (self.button_released(300), self.button_released(301));
             if yes {
                 self.confirmation = self.confirmation_popup;
@@ -323,12 +326,14 @@ impl EditorGui {
             draw_rectangle(0.0, 0.0, view_size.x, view_size.y, DARKEN_BACKGROUND);
 
             let rect = match self.confirmation_popup {
-                Confirmation::Save => Rect::new(26.0, 63.0, 143.0, 43.0),
-                _ => Rect::new(49.0, 68.0, 93.0, 38.0),
+                Confirmation::Help => None,
+                Confirmation::Save => Some(Rect::new(26.0, 63.0, 143.0, 43.0)),
+                _ => Some(Rect::new(49.0, 68.0, 93.0, 38.0)),
             };
-
-            draw_rectangle_lines(rect.x-1.0, rect.y-1.0, rect.w+2.0, rect.h+2.0, 2.0, GRID_COL);
-            draw_rectangle(rect.x, rect.y, rect.w, rect.h, BG_COL);
+            if let Some(r) = rect {
+                draw_rectangle_lines(r.x-1.0, r.y-1.0, r.w+2.0, r.h+2.0, 2.0, GRID_COL);
+                draw_rectangle(r.x, r.y, r.w, r.h, BG_COL);
+            }
 
             if self.confirmation_popup == Confirmation::Exit {
                 render_text(&String::from("     EXIT?     "), vec2(51.0, 70.0), WHITE, TextAlign::Left, texture);
@@ -357,6 +362,32 @@ impl EditorGui {
                     None => continue
                 };
                 field.draw(texture, text, &name, field_flash && self.active_text_field == Some(id), BUTTON_COL_HOVER, BUTTON_DETAIL_GREY);
+            }
+        }
+
+        if self.confirmation_popup == Confirmation::Help {
+            if let Some(button) = self.gui.button(106) {
+                button.draw(texture, BUTTON_DETAIL_HELP, if button.idle() {BUTTON_COL_IDLE} else {BUTTON_COL_HOVER}, GRID_COL);
+            }
+            self.render_help(texture);
+        }
+    }
+
+    fn render_help(&self, texture: &Texture2D) {
+        let help_points: &[(Vec2, Vec2, &[&str], TextAlign)] = &[
+            (vec2(190.0, 3.0), vec2(185.0, 30.0), &["CLICK THIS TO CHANGE THE", "LEVEL NAME (TYPE). CLICK AGAIN ", "OR PRESS 'ENTER' TO DESELECT"], TextAlign::Right),
+            (vec2(92.0, 171.0), vec2(92.0, 160.0), &["ADDS A NEW LEVEL", "TO THE PACK."], TextAlign::Left),
+            (vec2(77.0, 171.0), vec2(92.0, 140.0), &["EDIT NEXT / PREV", "LEVEL IN PACK."], TextAlign::Left),
+            (vec2(44.0, 171.0), vec2(68.0, 115.0), &["SHIFTS THE CURRENT", "LEVEL BACK / FORWARD", "IN THE PACK'S ORDER."], TextAlign::Left),
+            (vec2(31.0, 179.0), vec2(80.0, 90.0), &["DELETE THE CURRENT", "LEVEL (WITH POPUP)"], TextAlign::Left),
+            (vec2(5.0, 196.0), vec2(24.0, 63.0), &["TILE SELECTOR - LEFT CLICK", "TO SELECT TILE. DRAW/ERASE", "ON GRID WITH LEFT/RIGHT"], TextAlign::Left),
+        ];
+        for (a, b, lines, align) in help_points {
+            let (a, b) = (*a + vec2(-0.5, 1.0), *b + vec2(1.0, -0.5));
+            draw_line(a.x, a.y, a.x, b.y+0.5, 1.0, WHITE);
+            draw_line(a.x-0.5, b.y, b.x, b.y, 1.0, WHITE);
+            for (i, line) in lines.iter().enumerate() {
+                render_text(&line.to_string(), b + vec2(1.0, i as f32 * 7.0 - lines.len() as f32 * 7.0 * 0.5), WHITE, *align, texture);
             }
         }
     }

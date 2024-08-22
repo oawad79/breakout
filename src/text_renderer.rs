@@ -4,7 +4,7 @@ const CHAR_WIDTH: f32 = 5.0;
 const CHAR_HEIGHT: f32 = 6.0;
 const CHARS_ORIGIN: Vec2 = vec2(1.0, 16.0);
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub enum TextAlign {
     Left, Right
 }

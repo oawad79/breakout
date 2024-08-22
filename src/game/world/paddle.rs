@@ -1,6 +1,6 @@
 use std::f32::NEG_INFINITY;
 
-use macroquad::{color::WHITE, input::{is_key_down, is_key_pressed, is_key_released, KeyCode}, math::{vec2, Rect, Vec2}, texture::{draw_texture_ex, DrawTextureParams, Texture2D}};
+use macroquad::{color::WHITE, input::{is_key_down, is_key_released, KeyCode}, math::{vec2, Rect, Vec2}, texture::{draw_texture_ex, DrawTextureParams, Texture2D}};
 
 use super::{ball::{Ball, BALL_SIZE}, bullet::Bullet, level::Level};
 
@@ -90,7 +90,7 @@ impl Paddle {
     }
 
     pub fn powerup_gun(&mut self) {
-        self.gun = Some(10.0);
+        self.gun = Some(7.0);
     }
     pub fn powerup_grow(&mut self) {
         self.long = Some(15.0);
@@ -110,6 +110,9 @@ impl Paddle {
 
     pub fn balls_safe(&self) -> bool {
         self.balls_safe.is_some()
+    }
+    pub fn balls_safe_display(&self) -> bool {
+        self.balls_safe.is_some_and(|t| t % 0.25 <= 0.125 || t > 1.5)
     }
 
     // The rect of the center bit of the paddle
@@ -142,8 +145,8 @@ impl Paddle {
 
         // Shooting
         self.shot_timer -= delta;
-        if is_key_pressed(KeyCode::Q) && self.gun.is_some() && self.shot_timer <= 0.0 {
-            self.shot_timer = 0.2;
+        if (is_key_down(KeyCode::W) || is_key_down(KeyCode::Up)) && self.gun.is_some() && self.shot_timer <= 0.0 {
+            self.shot_timer = 0.3;
             bullets.push(Bullet::new(vec2(self.x + 2.0, Paddle::y())));
             bullets.push(Bullet::new(vec2(self.x - 2.0 + self.width, Paddle::y())));
         }
@@ -162,11 +165,11 @@ impl Paddle {
         }
         
         self.vel = 0.0;
-        if is_key_down(KeyCode::A) {
+        if is_key_down(KeyCode::A) || is_key_down(KeyCode::Left) {
             self.x -= delta * PADDLE_SPEED;
             self.vel -= 1.0;
         }
-        if is_key_down(KeyCode::D) {
+        if is_key_down(KeyCode::D) || is_key_down(KeyCode::Right){
             self.x += delta * PADDLE_SPEED;
             self.vel += 1.0;
         }

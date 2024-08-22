@@ -156,7 +156,7 @@ impl EditorLevelPack {
         let bytes = self.encode_to_file();
 
         #[cfg(target_arch = "wasm32")]
-        save_wasm(bytes, self.name());
+        save_wasm(bytes);
         #[cfg(not(target_arch = "wasm32"))]
         save_desktop(bytes, self.name());
     }
@@ -225,6 +225,8 @@ fn save_desktop(bytes: Vec<u8>, name: &String) {
 }
 
 #[cfg(target_arch = "wasm32")]
-fn save_wasm(_bytes: Vec<u8>, _name: &String) {
-    macroquad::logging::error!("not yet implemented saving on wasm!");
+use crate::game::level_pack::save_bytes;
+#[cfg(target_arch = "wasm32")]
+fn save_wasm(bytes: Vec<u8>) {
+    save_bytes(bytes);
 }

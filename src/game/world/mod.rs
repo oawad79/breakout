@@ -14,6 +14,7 @@ pub mod bullet;
 pub mod level;
 
 pub const CARRY_ICON_TEXTURE: Rect = Rect { x: 118.0, y: 8.0, w: 4.0, h: 4.0 };
+pub const SAFE_TEXTURE: Rect = Rect { x: 157.0, y: 18.0, w: 1.0, h: 6.0 };
 pub const BG_COL: Color = color_u8!(25, 31, 58, 255);
 
 pub enum Lives {
@@ -91,6 +92,7 @@ impl World {
         }
         if self.next_powerup == 0 {
             self.next_powerup = gen_range(2, 5);
+            // TODO: Balance powerup giving
             self.powerups.push(Powerup::new(index));
             return;
         }
@@ -134,7 +136,11 @@ impl World {
 
     pub fn update(&mut self) -> WorldUpdateReturn {
         let delta = macroquad::time::get_frame_time();
-        self.ball_stuck_timer += delta;
+        if !self.paddle.carrying() {
+            self.ball_stuck_timer += delta;
+        } else {
+            self.ball_stuck_timer = 0.0;
+        }
 
         // Balls
         let carried = self.paddle.update(delta, &mut self.bullets);
@@ -236,8 +242,8 @@ impl World {
         if self.balls.is_empty() && !self.paddle.carrying() && self.balls_to_dispense.is_empty() {
             // If we don't have infinite lives and the level isn't complete
             if self.lives.is_some() && !self.level_complete() {
-                // As a last ditch attempt to avoid a game over, don't gameover if we have a gun / bullets
-                if self.lives == Some(0) && self.paddle.has_gun_powerup() && self.bullets.is_empty() {
+                // As a last ditch attempt to avoid a game over, don't gameover if we have a gun / bullets, or if there are any powerups that can stop a game over
+                if self.lives == Some(0) && !self.paddle.has_gun_powerup() && self.bullets.is_empty() && !self.powerups.iter().any(|p| p.can_stop_game_over()){
                     gameover = true;
                 }
                 if self.lives.is_some_and(|l| l != 0) {
@@ -271,6 +277,15 @@ impl World {
     pub fn draw(&self, texture: &Texture2D) {
         clear_background(BG_COL);
 
+        let view_size = Level::view_size();
+        // Safety net
+        if self.paddle.balls_safe_display() {
+            draw_texture_ex(texture, 0.0, view_size.y - SAFE_TEXTURE.h, WHITE, DrawTextureParams {
+                source: Some(SAFE_TEXTURE),
+                dest_size: Some(vec2(view_size.x, SAFE_TEXTURE.h)),
+                ..Default::default()
+            });
+        }
         // Actual stuff
         for p in &self.powerups {
             p.draw(texture);
@@ -287,14 +302,14 @@ impl World {
         // HUD
         let mut x = 1.0;
         for _ in 0..self.lives.unwrap_or(0) {
-            draw_texture_ex(texture, x, Level::view_size().y - BALL_SIZE - 1.0, WHITE, DrawTextureParams {
+            draw_texture_ex(texture, x, view_size.y - BALL_SIZE - 1.0, WHITE, DrawTextureParams {
                 source: Some(BALL_TEXTURE),
                 ..Default::default()
             });
             x += BALL_SIZE + 1.0;
         }
         for _ in 0..self.paddle.carries() {
-            draw_texture_ex(texture, x, Level::view_size().y - BALL_SIZE - 1.0, WHITE, DrawTextureParams {
+            draw_texture_ex(texture, x, view_size.y - BALL_SIZE - 1.0, WHITE, DrawTextureParams {
                 source: Some(CARRY_ICON_TEXTURE),
                 ..Default::default()
             });

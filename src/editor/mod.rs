@@ -115,7 +115,7 @@ impl Scene for Editor {
         }
 
         // Editing tiles
-        let level_area_rect = Rect::new(0.0, LEVEL_HEIGHT_PADDING_TOP as f32 * (TILE_HEIGHT + TILE_GAP), LEVEL_WIDTH as f32 * (TILE_WIDTH + TILE_GAP), LEVEL_HEIGHT as f32 * (TILE_HEIGHT + TILE_GAP));
+        let level_area_rect = Rect::new(0.0, LEVEL_HEIGHT_PADDING_TOP as f32 * (TILE_HEIGHT + TILE_GAP), LEVEL_WIDTH as f32 * (TILE_WIDTH + TILE_GAP), LEVEL_HEIGHT as f32 * (TILE_HEIGHT + TILE_GAP) - TILE_GAP);
 
         if level_area_rect.contains(mouse_pos) && !self.gui.popup_open() {
             let hovered_tile_pos = ((mouse_pos - vec2(0.0, LEVEL_HEIGHT_PADDING_TOP as f32 * (TILE_HEIGHT * TILE_GAP) + TILE_GAP)) / (vec2(TILE_WIDTH, TILE_HEIGHT) + TILE_GAP)).floor();

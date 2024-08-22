@@ -80,30 +80,33 @@ mod wasm_specific {
 
     static TRY_FLAG: Mutex<bool> = Mutex::new(false);
     
-    // Function JS calls
+    // Function that JS calls
     #[no_mangle]
     pub extern "C" fn set_try_flag() {
         if let Ok(mut b) = TRY_FLAG.lock() {
             *b = true;
         }
-        macroquad::logging::info!("set_try_flag!!");
     }
     // Signature of the JS function rust calls
     #[no_mangle]
     extern "C" {
         fn js_send_level_bytes() -> JsObject;
+        fn js_recv_level_bytes(buffer: JsObject);
+    }
+
+    pub fn save_bytes(bytes: Vec<u8>) {
+        unsafe { js_recv_level_bytes(JsObject::buffer(&bytes)); }
     }
 
     pub fn try_load_level() -> Option<LevelPack> {
         // If the try flag couldn't be acquired (for some reason?) or if it's false, return None
         // Otherwise set it to false and carry on the function
+        // Also trans rights lololol
         match TRY_FLAG.lock() {
             Ok(mut b) if *b => { *b = false },
             _ => return None,
         };
-
-        macroquad::logging::info!("attempted!!");
-
+        // Try and get the pack, if the js sends back -1 a file wasn't uploaded properly or something
         let data = unsafe { js_send_level_bytes() };
         if data.is_nil() {
             return None;

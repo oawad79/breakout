@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use macroquad::{color::{Color, WHITE}, color_u8, input::{get_char_pressed, is_mouse_button_pressed, is_mouse_button_released, MouseButton}, math::{vec2, Rect, Vec2}, shapes::{draw_rectangle, draw_rectangle_lines}, texture::{draw_texture_ex, DrawTextureParams, Texture2D}};
+use macroquad::{color::{Color, WHITE}, color_u8, input::{get_char_pressed, is_key_pressed, is_mouse_button_pressed, is_mouse_button_released, KeyCode, MouseButton}, math::{vec2, Rect, Vec2}, shapes::{draw_rectangle, draw_rectangle_lines}, texture::{draw_texture_ex, DrawTextureParams, Texture2D}};
 
 use crate::{game::world::level::LEVEL_NAME_LEN, text_renderer::{char_valid, render_text, TextAlign}};
 
@@ -87,19 +87,32 @@ impl TextField {
         self.rect
     }
     pub fn update(&mut self, text: &mut String) -> bool {
+        let mut already_backspaced = false;
+        let backspace = |text: &mut String, already_backspaced: &mut bool| {
+            if text.len() > 0 && !*already_backspaced {
+                let new_len = text.len() - 1;
+                text.truncate(new_len);
+                *already_backspaced = true;
+            }
+        };
+
         if let Some(c) = get_char_pressed() {
             let c = c.to_ascii_uppercase();
             if char_valid(c) && text.len() < LEVEL_NAME_LEN {
                 text.push(c);
             }
             if c == '\u{8}' && text.len() > 0 {
-                let new_len = text.len() - 1;
-                text.truncate(new_len);
+                backspace(text, &mut already_backspaced);
             }
             if c == '\r' {
                 return true;
             }
         }
+
+        if is_key_pressed(KeyCode::Backspace) {
+            backspace(text, &mut already_backspaced);
+        }
+        
         return false;
     }
 

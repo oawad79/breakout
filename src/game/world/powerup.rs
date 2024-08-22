@@ -37,6 +37,10 @@ impl Powerup {
         }
     }
 
+    pub fn can_stop_game_over(&self) -> bool {
+        matches!(self.kind, PowerupKind::PaddleGun | PowerupKind::BallsFive)
+    }
+
     pub fn kind(&self) -> PowerupKind {
         self.kind
     }
