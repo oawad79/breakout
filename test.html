@@ -5,6 +5,63 @@
     <meta charset="utf-8">
     <title>TITLE</title>
     <style>
+        @font-face {
+            font-family: "jumbledBreakout";
+            src: url("jumbledBreakout.ttf");
+        }
+        #levelselector * {
+            font-family: "jumbledBreakout";
+            text-align: center;
+            font-size: 16px;
+            color: white;
+        }
+        #levelselector {
+            width: 30em;
+        }
+        #levelselector h2 {
+            text-align: center;
+            font-size: 32px;
+            margin-top: 0.2em;
+            margin-bottom: 0.2em;
+        }
+        #levels {
+            background-color: black;
+            height: 10em;
+            width: 30em;
+            overflow-y: scroll;
+        }
+
+        #levels .buttoncontainer {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        #levels button {
+            text-align: left;
+            width: 100%;
+            border: none;
+            background-color: black;
+            color: white;
+        }
+        #levels button:hover {
+            background-color: gray;
+        }
+        #levels .levelby {
+            color: lightgray;
+        }
+        #levels button.deletelevel {
+            text-align: center;
+            width: 2em;
+            isolation: isolate;
+            border: none;
+            background-color: red;
+            color: white;
+        }
+        #levels button.deletelevel:hover {
+            background-color: white;
+            color: red;
+        }
+
         html,
         body {
             background: grey;
@@ -23,10 +80,17 @@
 
 <body>
     <canvas id="glcanvas" tabindex='1'></canvas>
-    <input type="file" id="fileInput" multiple/>
-    <div id="levels">
-
+    <div id="levelselector">
+        <h2>Level pack selector</h2>
+        <div id="fileinput">
+            <!-- TODO: Make this look cool -->
+            <span>Upload packs:</span>
+            <button style="display:block;width:120px; height:30px;" onclick="document.getElementById('getFile').click()">Your text here</button>
+            <input type='file' id="getFile" style="display:none">
+        </div>
+        <div id="levels"></div>
     </div>
+
     <script src="mq_js_bundle.js"></script>
     <!-- Minified and statically hosted version of https://github.com/not-fl3/sapp-jsutils/blob/master/js/sapp_jsutils.js -->
     <!-- sapp_jsutils is miniquad plugin for more convinient js interop -->

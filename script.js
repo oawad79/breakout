@@ -32,6 +32,12 @@
 
 let array = null;
 
+window.onload = function() {
+    // Stop the canvas from being right-clicked on
+    var canvas = document.getElementById("glcanvas");
+    canvas.oncontextmenu = function(e) { e.preventDefault(); e.stopPropagation(); }
+};
+
 // Will be called when wasm_exports and wasm_memory will be available
 function on_init() {
     // Add the default files
@@ -39,7 +45,7 @@ function on_init() {
     for (var i = 0; i < default_levels.length; i++) {
         let name = default_levels[i];
         const url = name;
-        load_level_file(url, name);
+        load_level_file(url);
     }
 
     // Make it so the file input can set the array to something whenever it's loaded a new file!!!
@@ -52,7 +58,7 @@ function on_init() {
                     reader.onload = function(e) {
                         const arrayBuffer = e.target.result;
                         // Add this levels buttons and code
-                        add_level_button(arrayBuffer, file.name, true, event.target.files.length === 1);
+                        add_level_button(arrayBuffer, true, event.target.files.length === 1);
                     };
                     reader.readAsArrayBuffer(file);
                 } else {
@@ -65,7 +71,7 @@ function on_init() {
     });
 }
 
-async function load_level_file(url, name) {
+async function load_level_file(url) {
     // thanks chat gpt.. i hate javascript
     try {
         // Step 1: Fetch the content from the URL
@@ -89,7 +95,7 @@ async function load_level_file(url, name) {
         // Define what happens when the file is read
         reader.onload = function(e) {
             const arrayBuffer = e.target.result;
-            add_level_button(arrayBuffer, name, false, false);
+            add_level_button(arrayBuffer, false, false);
         };
         reader.readAsArrayBuffer(file);
     } catch (error) {
@@ -97,8 +103,17 @@ async function load_level_file(url, name) {
     }
 }
 
-function add_level_button(arrayBuffer, name, closable, load) {
+function add_level_button(arrayBuffer, closable, load) {
     let view = new Uint8Array(arrayBuffer);
+    let name_bytes = [];
+    for (var i = 0; i < 16; i++) {
+        if (view[i] != 255) {
+            name_bytes.push(view[i]);
+        } else {
+            break;
+        }
+    }
+    let name = String.fromCharCode(...name_bytes);
     let author_bytes = [];
     for (var i = 16; i < 32; i++) {
         if (view[i] != 255) {
@@ -112,8 +127,12 @@ function add_level_button(arrayBuffer, name, closable, load) {
 
     var buttons = document.getElementById("levels");
     var btn = document.createElement("BUTTON");  //<button> element
-    var t = document.createTextNode(name); // Create a text node
-    btn.appendChild(t);   
+    btn.appendChild(document.createTextNode(name)); 
+    var by = document.createElement("span");
+    by.textContent = " By ";
+    by.className = "levelby";
+    btn.appendChild(by);
+    btn.appendChild(document.createTextNode(author));
 
     btn.onclick = function() {
         array = new Uint8Array(arrayBuffer);
@@ -125,17 +144,16 @@ function add_level_button(arrayBuffer, name, closable, load) {
         deletebtn.arialabel='delete item'
         var x = document.createTextNode("X"); // Create a text node
         deletebtn.appendChild(x);
+        deletebtn.className = "deletelevel";
 
         deletebtn.onclick = function() {
             this.parentNode.remove();
         }
     }
     
-    var a = document.createTextNode("By " + author); // Create a text node
-
     var d = document.createElement("DIV");
+    d.className = "buttoncontainer";
     d.appendChild(btn);
-    d.appendChild(a);
 
     if (closable) {
         d.appendChild(deletebtn);

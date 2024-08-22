@@ -36,8 +36,8 @@ pub fn render_text(text: &String, pos: Vec2, color: Color, align: TextAlign, tex
             '/' => (17, 0),
             '(' => (18, 0),
             ')' => (19, 0),
-            '[' => (20, 0),
-            ']' => (21, 0),
+            '<' => (20, 0),
+            '>' => (21, 0),
             '.' => (22, 0),
             ',' => (23, 0),
             '\'' => (24, 0),
@@ -59,5 +59,5 @@ pub fn render_text(text: &String, pos: Vec2, color: Color, align: TextAlign, tex
 }
 
 pub fn char_valid(c: char) -> bool {
-    c.is_ascii_uppercase() || c.is_ascii_digit() || [' ', '_', '?', '!', '*', ':', '-', '+', '/', '(', ')', '[', ']', '.', ',', '\''].contains(&c)
+    c.is_ascii_uppercase() || c.is_ascii_digit() || [' ', '_', '?', '!', '*', ':', '-', '+', '/', '(', ')', '<', '>', '.', ',', '\''].contains(&c)
 }

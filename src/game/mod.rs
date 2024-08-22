@@ -101,7 +101,7 @@ impl Scene for Game {
             return Some(SceneChange::MainMenu);
         }
 
-        if !(matches!(self.timer, Some((_, TimerKind::NextLevel))) || self.pack_complete) {
+        if !(matches!(self.timer, Some((_, TimerKind::NextLevel))) || self.pack_complete || self.pause_menu.paused()) {
             self.pack_time += delta;
         }
 

@@ -90,6 +90,7 @@ impl World {
         if !self.level.break_tile(index) {
             return;
         }
+        self.score += 10;
         if self.next_powerup == 0 {
             self.next_powerup = gen_range(2, 5);
             // TODO: Balance powerup giving
@@ -98,7 +99,6 @@ impl World {
         }
         self.next_powerup -= 1;
         self.ball_stuck_timer = 0.0;
-        self.score += 10;
     }
 
     pub fn give_free_ball(&mut self) {
