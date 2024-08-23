@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 
-use macroquad::{color::{Color, BLUE, ORANGE, RED, WHITE}, math::{vec2, Rect, Vec2}, shapes::{draw_rectangle, draw_rectangle_lines}, texture::{draw_texture_ex, DrawTextureParams, Texture2D}, window::clear_background};
+use macroquad::{color::{Color, BLUE, GREEN, ORANGE, PURPLE, RED, WHITE, YELLOW}, math::{vec2, Rect, Vec2}, shapes::{draw_rectangle, draw_rectangle_lines}, texture::{draw_texture_ex, DrawTextureParams, Texture2D}, window::clear_background};
 
 use crate::{game::world::BG_COL, gui::{Button, ButtonDetail, Gui, Id, BUTTON_COL_HOVER, BUTTON_COL_IDLE, BUTTON_DETAIL_GREY, GRID_COL}, text_renderer::{render_text, TextAlign}, Scene, SceneChange};
 
 pub struct MainMenu {
     gui: Gui,
+    name_timer: f32,
     on_info_tab: bool,
     info_flash: f32,
 }
@@ -21,6 +22,7 @@ impl MainMenu {
 
         Self {
             gui: Gui::new(buttons),
+            name_timer: 0.0,
             on_info_tab: false,
             info_flash: 0.0,
         }
@@ -46,6 +48,7 @@ impl Scene for MainMenu {
         }
 
         self.info_flash = (self.info_flash + macroquad::time::get_frame_time()) % 1.0;
+        self.name_timer += macroquad::time::get_frame_time();
 
         if self.gui.button(3).is_some_and(|b| b.released()) {
             self.info_flash = 0.0;
@@ -136,9 +139,18 @@ impl Scene for MainMenu {
 
         } else {
 
-            // TODO: Logo
-            
-            render_text(&String::from("JUMBLEDFOX'S BREAKOUT"), vec2(0.0, 0.0), WHITE, TextAlign::Left, texture);
+            // Logo
+            let logo_pos = |t: f32| -> Vec2 {
+                let m = 40.0;
+                vec2((t*m).to_radians().sin(), (t*m*2.0).to_radians().sin()) * vec2(31.0, 24.0) + vec2(33.0, 30.0)
+            };
+    
+            for (t_offset, col) in [
+                (0.0, WHITE), (1.0, RED), (2.0, ORANGE), (3.0, YELLOW), (4.0, GREEN), (5.0, BLUE), (6.0, PURPLE)
+            ].iter().rev() {
+                let pos = logo_pos(self.name_timer - t_offset * 0.2);
+                render_text(&String::from("JUMBLEDFOX'S BREAKOUT"), pos, *col, TextAlign::Left, texture);
+            }
 
             draw_rectangle_lines(46.0, 75.0, 100.0, 18.0, 2.0, GRID_COL);
             render_text(&String::from("LEVEL PACK LOADED:"), vec2(44.0, 66.0), WHITE, TextAlign::Left, texture);

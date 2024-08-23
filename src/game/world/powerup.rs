@@ -22,16 +22,17 @@ pub struct Powerup {
 }
 
 impl Powerup {
-    pub fn new(tile_index: usize) -> Self {
+    pub fn new(tile_index: usize, spawn_carry: bool) -> Self {
+        let random = gen_range(0, if spawn_carry {6} else {5});
         Self {
             pos: Level::tile_pos(tile_index) - 1.0,
-            kind: match gen_range(0, 6) {
-                0 => PowerupKind::PaddleCarry,
-                1 => PowerupKind::PaddleGun,
-                2 => PowerupKind::PaddleGrow,
-                3 => PowerupKind::BallsFive,
-                4 => PowerupKind::BallsTrail,
-                _ => PowerupKind::BallsSafe,
+            kind: match random {
+                0 => PowerupKind::PaddleGun,
+                1 => PowerupKind::PaddleGrow,
+                2 => PowerupKind::BallsFive,
+                3 => PowerupKind::BallsTrail,
+                4 => PowerupKind::BallsSafe,
+                _ => PowerupKind::PaddleCarry,
             },
             fall_speed: gen_range(25.0, 40.0),
         }

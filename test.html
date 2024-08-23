@@ -9,16 +9,16 @@
             font-family: "jumbledBreakout";
             src: url("jumbledBreakout.ttf");
         }
-        #levelselector * {
+        #levelSelector * {
             font-family: "jumbledBreakout";
             text-align: center;
             font-size: 16px;
             color: white;
         }
-        #levelselector {
+        #levelSelector {
             width: 30em;
         }
-        #levelselector h2 {
+        #levelSelector h2 {
             text-align: center;
             font-size: 32px;
             margin-top: 0.2em;
@@ -52,6 +52,7 @@
         #levels button.deletelevel {
             text-align: center;
             width: 2em;
+            padding-left: 0.4em;
             isolation: isolate;
             border: none;
             background-color: red;
@@ -61,6 +62,21 @@
             background-color: white;
             color: red;
         }
+
+        #fileInputButton {
+            text-align: left;
+            width: 100%;
+            border: none;
+            background-color: gray;
+            color: white;
+        }
+
+        #fileInputButton:hover {
+            background-color: white;
+            color: gray;
+        }
+
+
 
         html,
         body {
@@ -80,13 +96,11 @@
 
 <body>
     <canvas id="glcanvas" tabindex='1'></canvas>
-    <div id="levelselector">
+    <div id="levelSelector">
         <h2>Level pack selector</h2>
-        <div id="fileinput">
-            <!-- TODO: Make this look cool -->
-            <span>Upload packs:</span>
-            <button style="display:block;width:120px; height:30px;" onclick="document.getElementById('getFile').click()">Your text here</button>
-            <input type='file' id="getFile" style="display:none">
+        <div id="fileInput">
+            <button id="fileInputButton" onclick="document.getElementById('getFile').click()">CLICK TO UPLOAD LEVEL PACKS...</button>
+            <input type='file' id="getFile" style="display:none" multiple>
         </div>
         <div id="levels"></div>
     </div>

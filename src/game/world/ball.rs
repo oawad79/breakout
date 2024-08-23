@@ -1,4 +1,4 @@
-use macroquad::{color::WHITE, math::{vec2, BVec2, Rect, Vec2}, texture::{draw_texture_ex, DrawTextureParams, Texture2D}};
+use macroquad::{color::WHITE, math::{vec2, BVec2, Rect, Vec2}, rand::gen_range, texture::{draw_texture_ex, DrawTextureParams, Texture2D}};
 
 use super::{level::{Level, Tile, LEVEL_HEIGHT, LEVEL_HEIGHT_PADDING_TOP, LEVEL_WIDTH, TILE_GAP, TILE_HEIGHT, TILE_WIDTH}, paddle::Paddle};
 
@@ -48,9 +48,7 @@ impl Ball {
         
         self.pos += self.vel * delta * BALL_SPEED;
 
-        // Naive approach - checking EVERY TILE
-        // TODO: Ideal approch - check the 3x3 area of tiles
-
+        // Ideal approch - check the 3x3 area of tiles around the ball rather than all of them
         let mut tiles_to_check = Vec::with_capacity(9);
         let ball_tile_pos = (self.pos - vec2(0.0, LEVEL_HEIGHT_PADDING_TOP as f32 * TILE_HEIGHT)) / (vec2(TILE_WIDTH, TILE_HEIGHT) + TILE_GAP);
         
@@ -87,7 +85,6 @@ impl Ball {
             }
         }
 
-        // TODO: Paddle physics
         let mut hit_paddle = false;
         if self.vel.y > 0.0 && paddle.collision_rect().overlaps(&rect.offset(vec2(prev_pos.x, self.pos.y))) {
             self.pos = prev_pos;
@@ -95,7 +92,16 @@ impl Ball {
             hit_paddle = true;
 
             let center_dist = paddle.center_dist(self.pos.x + BALL_SIZE / 2.0);
-            self.vel.y *= 1.0 + center_dist * 0.2; 
+            let magnitude = self.vel.length();
+            let angle = self.vel.angle_between(vec2(-1.0, 0.0));
+            
+            let new_angle = angle.to_degrees() - 30.0 * center_dist * self.vel.x.signum();
+            let new_angle = new_angle.clamp(90.0 - 60.0, 90.0 + 60.0);
+
+            let new_magnitude = (magnitude * gen_range(1.0, 1.05)).clamp(1.0, 1.3);
+
+            self.vel = Vec2::from_angle(new_angle.to_radians()) * new_magnitude * vec2(-1.0, 1.0);
+            // self.vel.y *= 1.0 + center_dist * 0.2; 
 
             // let angle = match center_dist.abs() {
             //     0.6.. => 70,

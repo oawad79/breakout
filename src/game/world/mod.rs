@@ -1,7 +1,7 @@
 use ball::{Ball, BallHitState, BALL_SIZE, BALL_TEXTURE};
 use bullet::{Bullet, BulletHitState};
 use level::Level;
-use macroquad::{color::{Color, WHITE}, color_u8, math::{vec2, Rect}, rand::{gen_range, ChooseRandom}, texture::{draw_texture_ex, DrawTextureParams, Texture2D}, window::clear_background};
+use macroquad::{color::{Color, WHITE}, color_u8, input::{is_key_pressed, KeyCode}, math::{vec2, Rect}, rand::{gen_range, ChooseRandom}, texture::{draw_texture_ex, DrawTextureParams, Texture2D}, window::clear_background};
 use paddle::Paddle;
 use powerup::{Powerup, PowerupHitState, PowerupKind};
 
@@ -92,9 +92,13 @@ impl World {
         }
         self.score += 10;
         if self.next_powerup == 0 {
-            self.next_powerup = gen_range(2, 5);
-            // TODO: Balance powerup giving
-            self.powerups.push(Powerup::new(index));
+            self.next_powerup = match self.balls.len() {
+                ..= 3 => gen_range(2,  5),
+                ..=10 => gen_range(4,  8),
+                ..=15 => gen_range(5, 10),
+                _     => gen_range(5, 15),
+            };
+            self.powerups.push(Powerup::new(index, self.paddle.carries() < 3));
             return;
         }
         self.next_powerup -= 1;
@@ -140,6 +144,22 @@ impl World {
             self.ball_stuck_timer += delta;
         } else {
             self.ball_stuck_timer = 0.0;
+        }
+
+        // testing
+        {
+            let view_size = Level::view_size();
+
+            for (start_x, keycode, dir) in [
+                ( 30.0, KeyCode::Q,  45.0_f32),
+                (110.0, KeyCode::E,  45.0_f32),
+            ] {
+                if is_key_pressed(keycode) {
+                    for i in 0..5 {
+                        self.balls.push(Ball::new(vec2(start_x + i as f32 * 4.0, view_size.y - 50.0), dir.to_degrees(), 1.0));
+                    }
+                }
+            }
         }
 
         // Balls
